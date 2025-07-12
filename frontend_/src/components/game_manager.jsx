@@ -73,9 +73,13 @@ const GameRunner = ({ playerName }) => {
     setPhase(gameState.phase);
     setDeck(gameState.deck);
     setDiscardPile(gameState.discardPile);
-    setSharedPool(gameState.sharedPool ?? []);
 
+    setSharedPool([...gameState.sharedPool]);  // ✅ ensure clone to trigger re-render
     console.log("📥 Synced sharedPool on client:", gameState.sharedPool);
+    console.log("🧮 SharedPool length:", gameState.sharedPool?.length);
+    console.log("📋 Full sharedPool contents:", JSON.stringify(gameState.sharedPool, null, 2));
+
+
     setPlayers(gameState.players);
     setCurrentPlayerIndex(gameState.currentPlayerIndex);
     setLastDonatorIndex(gameState.lastDonatorIndex);
@@ -83,6 +87,17 @@ const GameRunner = ({ playerName }) => {
     setSharedSelectionIndex(gameState.sharedSelectionIndex ?? 0);
     setFinalPhaseDone(gameState.finalPhaseDone);
   };
+
+  // ✅ Use fallback *once* before listener
+  if (!hasSynced.current) {
+    const cached = localStorage.getItem("last_game_state");
+    if (cached) {
+      console.log("📦 Using cached game state");
+      handleGameState(JSON.parse(cached));
+    }
+  }
+
+
   socket.on("sync_game_state", handleGameState);
 
   
@@ -129,12 +144,6 @@ const GameRunner = ({ playerName }) => {
         console.log("📦 Using cached game state");
         handleGameState(JSON.parse(cachedGameState));
       }
-    }
-
-    const cachedGameState = localStorage.getItem("last_game_state");
-    if (cachedGameState) {
-      console.log("📦 Using cached game state");
-      handleGameState(JSON.parse(cachedGameState));
     }
 
     socket.on("player_list", (list) => {
