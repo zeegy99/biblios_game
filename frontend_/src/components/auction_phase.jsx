@@ -2,26 +2,51 @@ import Card from "./card";
 import React, { useState, useMemo, useRef } from "react";
 
 const AuctionPhase = ({
-  players,
+   players,
   discardPile,
   setDiscardPile,
   setPhase,
   setPlayers,
   lastDonatorIndex,
   auctionStarterIndex,
+  playerName,
+  broadcastState,
+
+  currentCardIndex,
+  setCurrentCardIndex,
+  currentBid,
+  setCurrentBid,
+  highestBidder,
+  setHighestBidder,
+  activePlayerIndex,
+  setActivePlayerIndex,
+  activeBidders,
+  setActiveBidders,
+  awaitingGoldPayment,
+  setAwaitingGoldPayment,
+  goldPaymentWinner,
+  setGoldPaymentWinner,
+  awaitingCardPayment,
+  setAwaitingCardPayment,
+  selectedPaymentCards,
+  setSelectedPaymentCards,
+  goldWinner,
+  setGoldWinner,
+  goldCard,
+  setGoldCard
 }) => {
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [currentBid, setCurrentBid] = useState(0);
-  const [highestBidder, setHighestBidder] = useState(null);
-  const [activePlayerIndex, setActivePlayerIndex] = useState(0);
-  const [activeBidders, setActiveBidders] = useState(players.map(() => true));
-  const bidInputRef = useRef(null);
-  const [awaitingGoldPayment, setAwaitingGoldPayment] = useState(false);
-  const [goldPaymentWinner, setGoldPaymentWinner] = useState(null);
-  const [awaitingCardPayment, setAwaitingCardPayment] = useState(false);
-  const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
-  const [goldWinner, setGoldWinner] = useState(null);
-  const [goldCard, setGoldCard] = useState(null);
+  // const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  // const [currentBid, setCurrentBid] = useState(0);
+  // const [highestBidder, setHighestBidder] = useState(null);
+  // const [activePlayerIndex, setActivePlayerIndex] = useState(0);
+  // const [activeBidders, setActiveBidders] = useState(players.map(() => true));
+  // const bidInputRef = useRef(null);
+  // const [awaitingGoldPayment, setAwaitingGoldPayment] = useState(false);
+  // const [goldPaymentWinner, setGoldPaymentWinner] = useState(null);
+  // const [awaitingCardPayment, setAwaitingCardPayment] = useState(false);
+  // const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
+  // const [goldWinner, setGoldWinner] = useState(null);
+  // const [goldCard, setGoldCard] = useState(null);
   const [auctionTurnOffset, setAuctionTurnOffset] = useState(
     (lastDonatorIndex + 1) % players.length
   );
@@ -45,16 +70,26 @@ const AuctionPhase = ({
   const handleBid = (amount) => {
     if (isGold && amount > player.hand.length) return;
     if (!isGold && amount > player.gold) return;
+
+
     const isFirstBid = highestBidder === null;
     if (!isFirstBid && amount <= currentBid) {
       return alert("Bid too low!");
     }
 
-    setCurrentBid(amount);
-    setHighestBidder(activePlayerIndex);
-
     const updated = [...activeBidders];
     updated[activePlayerIndex] = true;
+
+    setCurrentBid(amount);
+    setHighestBidder(activePlayerIndex);
+    setActiveBidders(updated);
+
+    broadcastState({
+    currentBid: amount,
+    highestBidder: activePlayerIndex,
+    activeBidders: updated,
+    activePlayerIndex: (activePlayerIndex + 1) % players.length, // optimistic turn rotation
+  });
 
     const stillIn = updated.filter(Boolean).length;
     if (stillIn === 1) {
@@ -68,6 +103,11 @@ const AuctionPhase = ({
     const updated = [...activeBidders];
     updated[activePlayerIndex] = false;
     setActiveBidders(updated);
+
+    broadcastState({
+    activeBidders: updated,
+    activePlayerIndex: (activePlayerIndex + 1) % players.length,
+  });
 
     const stillIn = updated.filter(Boolean).length;
     const hasBid = highestBidder !== null;
@@ -84,31 +124,59 @@ const AuctionPhase = ({
   const finishAuction = (finalBidders, winnerIndex) => {
   if (winnerIndex == null) {
     alert("No one bid — card discarded.");
+
+    broadcastState({
+      discardPile: discardPile.slice(1), // remove the top card
+      currentCardIndex: currentCardIndex + 1,
+      highestBidder: null,
+      currentBid: 0,
+      activeBidders: players.map(() => true),
+      activePlayerIndex: 0,
+    });
   } else {
     const updatedPlayers = [...players];
     const winnerName = biddingOrder[winnerIndex].name;
     const winnerIdx = players.findIndex((p) => p.name === winnerName);
     const winner = updatedPlayers[winnerIdx];
 
-    if (isGold) {
-      winner.gold += currentCard.value; // Increase the player's gold by the card's value
+    winner.hand.push(currentCard);
 
-      // Add the gold card to the winner's hand
-      winner.hand.push(currentCard);
-      
+    if (isGold) {
+      winner.gold += currentCard.value;
+
       setAwaitingCardPayment(true);
       setGoldWinner({ player: winner, index: winnerIdx });
       setGoldCard(currentCard);
 
+      setPlayers(updatedPlayers);
+      broadcastState({
+        players: updatedPlayers,
+        awaitingCardPayment: true,
+        goldWinner: { player: winner, index: winnerIdx },
+        goldCard: currentCard,
+      });
+
+      return;
+
     } else {
-      // Add the won card (non-gold) to the winner's hand
-      winner.hand.push(currentCard);
+      // Add the won card (non-gold) to the winner's hand 
       setAwaitingGoldPayment(true);
       setGoldPaymentWinner({ player: winner, index: winnerIdx, card: currentCard });
+
+      setPlayers(updatedPlayers);
+      broadcastState({
+        players: updatedPlayers,
+        awaitingGoldPayment: true,
+        goldPaymentWinner: {
+          player: winner,
+          index: winnerIdx,
+          card: currentCard,
+        },
+      });
       return; // Wait until payment is confirmed
     }
 
-    setPlayers(updatedPlayers);
+
   }
 
   // Advance to next card
@@ -118,14 +186,25 @@ const AuctionPhase = ({
     setActiveBidders(players.map(() => true));
     setAuctionTurnOffset((prev) => (prev + 1) % players.length);
     setActivePlayerIndex(0); // always start at index 0 of the new biddingOrder
+    setCurrentBid(0);
 
+    broadcastState({
+      currentCardIndex: currentCardIndex + 1,
+      highestBidder: null,
+      activeBidders: players.map(() => true),
+      activePlayerIndex: 0,
+      currentBid: 0,
+    });
     // Reset bid ONLY if we're not awaiting a gold card payment
-    if (!isGold) {
-      setCurrentBid(0);
-    }
+  
   } else {
     setDiscardPile([]);
     setPhase("scoring");
+
+    broadcastState({
+      discardPile: [],
+      phase: "scoring",
+    });
   }
 };
 
@@ -176,6 +255,17 @@ const AuctionPhase = ({
   setActiveBidders(players.map(() => true));
   setAuctionTurnOffset((prev) => (prev + 1) % players.length);
   setActivePlayerIndex(0);
+
+  broadcastState({
+    players: updatedPlayers,
+    awaitingGoldPayment: false,
+    selectedPaymentCards: [],
+    currentBid: 0,
+    currentCardIndex: currentCardIndex + 1,
+    highestBidder: null,
+    activeBidders: players.map(() => true),
+    activePlayerIndex: 0,
+  });
 };
 
 
@@ -225,6 +315,8 @@ const AuctionPhase = ({
 
       const updatedPlayers = [...players];
       const hand = [...updatedPlayers[goldWinner.index].hand];
+
+      //Removing selected cards
       const filtered = hand.filter((_, i) =>
         !selectedPaymentCards.some((c) => c.idx === i)
       );
@@ -234,6 +326,13 @@ const AuctionPhase = ({
       setAwaitingCardPayment(false);
       setSelectedPaymentCards([]);
       setCurrentBid(0);
+
+      broadcastState({
+      players: updatedPlayers,
+      awaitingCardPayment: false,
+      selectedPaymentCards: [],
+      currentBid: 0,
+  });
     };
 
     return (
@@ -270,20 +369,29 @@ const AuctionPhase = ({
         Current Bid: {currentBid} by{" "}
         {highestBidder != null ? biddingOrder[highestBidder].name : "None"}
       </p>
-      <p>Player: {player.name}</p>
-      <p>Gold: {player.gold}, Cards: {player.hand.length}</p>
-      <input
-        type="number"
-        min={0}
-        placeholder="Enter bid"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            handleBid(Number(e.target.value));
-            e.target.value = "";
-          }
-        }}
-      />
-      <button onClick={handlePass}>Pass</button>
+      <p style={{ fontWeight: "bold", fontSize: "1.2rem" }}>
+      👉 {player.name}'s turn to bid
+    </p>
+
+    <p>Gold: {player.gold}, Cards: {player.hand.length}</p>
+
+      {player.name === playerName && (
+  <>
+    <input
+      type="number"
+      min={0}
+      placeholder="Enter bid"
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          handleBid(Number(e.target.value));
+          e.target.value = "";
+        }
+      }}
+    />
+    <button onClick={handlePass}>Pass</button>
+  </>
+)}
+
     </div>
   );
 };

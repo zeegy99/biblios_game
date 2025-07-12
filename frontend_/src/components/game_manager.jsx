@@ -26,6 +26,19 @@ const GameRunner = ({ playerName }) => {
   const [lastDonatorIndex, setLastDonatorIndex] = useState(null);
   const [finalPhaseDone, setFinalPhaseDone] = useState(false);
 
+  //For Auctions
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [currentBid, setCurrentBid] = useState(0);
+  const [highestBidder, setHighestBidder] = useState(null);
+  const [activePlayerIndex, setActivePlayerIndex] = useState(0);
+  const [activeBidders, setActiveBidders] = useState([]);
+  const [awaitingGoldPayment, setAwaitingGoldPayment] = useState(false);
+  const [goldPaymentWinner, setGoldPaymentWinner] = useState(null);
+  const [awaitingCardPayment, setAwaitingCardPayment] = useState(false);
+  const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
+  const [goldWinner, setGoldWinner] = useState(null);
+  const [goldCard, setGoldCard] = useState(null);
+
   //Building out what gameState is
   const buildGameState = () => ({
     phase,
@@ -38,6 +51,19 @@ const GameRunner = ({ playerName }) => {
     sharedSelectionIndex,
     dice,
     finalPhaseDone,
+
+     // 🔽 Auction state
+    currentCardIndex,
+    currentBid,
+    highestBidder,
+    activePlayerIndex,
+    activeBidders,
+    awaitingGoldPayment,
+    goldPaymentWinner,
+    awaitingCardPayment,
+    selectedPaymentCards,
+    goldWinner,
+    goldCard,
   });
 
   const broadcastState = (newPartialState = null) => {
@@ -86,6 +112,19 @@ const GameRunner = ({ playerName }) => {
     setDice(gameState.dice);
     setSharedSelectionIndex(gameState.sharedSelectionIndex ?? 0);
     setFinalPhaseDone(gameState.finalPhaseDone);
+
+    //Auctions
+    setCurrentCardIndex(gameState.currentCardIndex ?? 0);
+    setCurrentBid(gameState.currentBid ?? 0);
+    setHighestBidder(gameState.highestBidder);
+    setActivePlayerIndex(gameState.activePlayerIndex ?? 0);
+    setActiveBidders(gameState.activeBidders ?? []);
+    setAwaitingGoldPayment(gameState.awaitingGoldPayment ?? false);
+    setGoldPaymentWinner(gameState.goldPaymentWinner ?? null);
+    setAwaitingCardPayment(gameState.awaitingCardPayment ?? false);
+    setSelectedPaymentCards(gameState.selectedPaymentCards ?? []);
+    setGoldWinner(gameState.goldWinner ?? null);
+    setGoldCard(gameState.goldCard ?? null);
   };
 
   // ✅ Use fallback *once* before listener
@@ -282,6 +321,33 @@ const GameRunner = ({ playerName }) => {
           setPlayers={setPlayers}
           lastDonatorIndex={lastDonatorIndex}
           auctionStarterIndex={auctionStarterIndex}
+          playerName={playerName}
+          broadcastState={broadcastState}
+
+          //AuctionState
+
+          currentCardIndex={currentCardIndex}
+          setCurrentCardIndex={setCurrentCardIndex}
+          currentBid={currentBid}
+          setCurrentBid={setCurrentBid}
+          highestBidder={highestBidder}
+          setHighestBidder={setHighestBidder}
+          activePlayerIndex={activePlayerIndex}
+          setActivePlayerIndex={setActivePlayerIndex}
+          activeBidders={activeBidders}
+          setActiveBidders={setActiveBidders}
+          awaitingGoldPayment={awaitingGoldPayment}
+          setAwaitingGoldPayment={setAwaitingGoldPayment}
+          goldPaymentWinner={goldPaymentWinner}
+          setGoldPaymentWinner={setGoldPaymentWinner}
+          awaitingCardPayment={awaitingCardPayment}
+          setAwaitingCardPayment={setAwaitingCardPayment}
+          selectedPaymentCards={selectedPaymentCards}
+          setSelectedPaymentCards={setSelectedPaymentCards}
+          goldWinner={goldWinner}
+          setGoldWinner={setGoldWinner}
+          goldCard={goldCard}
+          setGoldCard={setGoldCard}
         />
       )}
 
