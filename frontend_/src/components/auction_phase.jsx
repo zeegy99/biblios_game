@@ -1,8 +1,8 @@
 import Card from "./card";
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 
 const AuctionPhase = ({
-   players,
+  players,
   discardPile,
   setDiscardPile,
   setPhase,
@@ -33,20 +33,35 @@ const AuctionPhase = ({
   goldWinner,
   setGoldWinner,
   goldCard,
-  setGoldCard
+  setGoldCard,
+  inactiveBidders,
+  setInactiveBidders,
 }) => {
-  // const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  // const [currentBid, setCurrentBid] = useState(0);
-  // const [highestBidder, setHighestBidder] = useState(null);
-  // const [activePlayerIndex, setActivePlayerIndex] = useState(0);
-  // const [activeBidders, setActiveBidders] = useState(players.map(() => true));
-  // const bidInputRef = useRef(null);
-  // const [awaitingGoldPayment, setAwaitingGoldPayment] = useState(false);
-  // const [goldPaymentWinner, setGoldPaymentWinner] = useState(null);
-  // const [awaitingCardPayment, setAwaitingCardPayment] = useState(false);
-  // const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
-  // const [goldWinner, setGoldWinner] = useState(null);
-  // const [goldCard, setGoldCard] = useState(null);
+
+  useEffect(() => {
+  console.log("🚀 Auction phase started!");
+  console.log("🎯 Initial activePlayerIndex:", activePlayerIndex);
+  console.log("🧑‍🤝‍🧑 Initial activeBidders:", activeBidders);
+  console.log({
+    players,
+    discardPile,
+    lastDonatorIndex,
+    auctionStarterIndex,
+    playerName,
+    currentCardIndex,
+    currentBid,
+    highestBidder,
+    activePlayerIndex,
+    activeBidders,
+    awaitingGoldPayment,
+    goldPaymentWinner,
+    awaitingCardPayment,
+    selectedPaymentCards,
+    goldWinner,
+    goldCard,
+  });
+}, []);
+ 
   const [auctionTurnOffset, setAuctionTurnOffset] = useState(
     (lastDonatorIndex + 1) % players.length
   );
@@ -58,6 +73,18 @@ const AuctionPhase = ({
   const currentCard = discardPile[currentCardIndex];
   const isGold = currentCard?.type === "Gold";
   const player = biddingOrder[activePlayerIndex];
+  // const [inactiveBidders, setInactiveBidders] = useState({}); Being passed in through game_manager
+
+  useEffect(() => {
+    const stored = localStorage.getItem("last_game_state");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.inactiveBidders) {
+        setInactiveBidders(parsed.inactiveBidders);
+        console.log("🧠 Synced inactiveBidders from storage:", parsed.inactiveBidders);
+      }
+    }
+  }, []);
 
   const nextPlayer = () => {
     let next = (activePlayerIndex + 1) % players.length;
@@ -89,6 +116,7 @@ const AuctionPhase = ({
     highestBidder: activePlayerIndex,
     activeBidders: updated,
     activePlayerIndex: (activePlayerIndex + 1) % players.length, // optimistic turn rotation
+    inactiveBidders,
   });
 
     const stillIn = updated.filter(Boolean).length;
@@ -100,26 +128,51 @@ const AuctionPhase = ({
   };
 
   const handlePass = () => {
-    const updated = [...activeBidders];
-    updated[activePlayerIndex] = false;
-    setActiveBidders(updated);
+    console.log(`🚫 ${playerName} is passing from index ${activePlayerIndex}`);
 
-    broadcastState({
-    activeBidders: updated,
-    activePlayerIndex: (activePlayerIndex + 1) % players.length,
-  });
+    const currentIndex = players.findIndex(p => p.name === playerName);
+    const newInactive = { ...inactiveBidders, [currentIndex]: true };
+    setInactiveBidders(newInactive);
 
-    const stillIn = updated.filter(Boolean).length;
+    
+    const stillActive = players.filter((_, i) => !newInactive[i]);
+
+    console.log("🪪 newInactive:", newInactive);
+    console.log("✅ stillActive players:", stillActive.map(p => p.name));
     const hasBid = highestBidder !== null;
 
-    if (stillIn === 0) {
-      finishAuction(updated, hasBid ? highestBidder : null);
-    } else if (stillIn === 1 && hasBid) {
-      finishAuction(updated, highestBidder);
+   if (stillActive.length === 0) {
+      finishAuction(activeBidders, hasBid ? highestBidder : null);
+    } else if (stillActive.length === 1 && hasBid) {
+      finishAuction(activeBidders, highestBidder);
     } else {
-      nextPlayer();
-    }
-  };
+      console.log(`📤 ${playerName} is passing from index ${activePlayerIndex}`);
+
+      let next = (activePlayerIndex + 1) % players.length;
+      while (newInactive[next]) {
+        next = (next + 1) % players.length;
+      }
+
+      console.log(`➡️ Next active player: ${players[next].name} (${next})`);
+
+      setActivePlayerIndex(next);
+      broadcastState({
+        inactiveBidders: newInactive,
+        activePlayerIndex: next,
+        activeBidders,
+        currentBid,
+        highestBidder,
+      });
+
+      console.log("📡 Emitted new state:", {
+        inactiveBidders: newInactive,
+        activePlayerIndex: next,
+        highestBidder,
+        currentBid,
+      });
+
+  }
+};
 
   const finishAuction = (finalBidders, winnerIndex) => {
   if (winnerIndex == null) {
@@ -187,6 +240,7 @@ const AuctionPhase = ({
     setAuctionTurnOffset((prev) => (prev + 1) % players.length);
     setActivePlayerIndex(0); // always start at index 0 of the new biddingOrder
     setCurrentBid(0);
+    setInactiveBidders({});
 
     broadcastState({
       currentCardIndex: currentCardIndex + 1,
@@ -194,6 +248,7 @@ const AuctionPhase = ({
       activeBidders: players.map(() => true),
       activePlayerIndex: 0,
       currentBid: 0,
+      inactiveBidders: {}
     });
     // Reset bid ONLY if we're not awaiting a gold card payment
   
@@ -362,38 +417,45 @@ const AuctionPhase = ({
 
   // 🔶 Main auction UI
   return (
-    <div>
-      <h3>Auction Phase</h3>
-      <Card {...currentCard} />
-      <p>
-        Current Bid: {currentBid} by{" "}
-        {highestBidder != null ? biddingOrder[highestBidder].name : "None"}
-      </p>
-      <p style={{ fontWeight: "bold", fontSize: "1.2rem" }}>
+  <div>
+    <h3>Auction Phase</h3>
+    <Card {...currentCard} />
+    <p>
+      Current Bid: {currentBid} by{" "}
+      {highestBidder != null ? biddingOrder[highestBidder].name : "None"}
+    </p>
+    <p style={{ fontWeight: "bold", fontSize: "1.2rem" }}>
       👉 {player.name}'s turn to bid
     </p>
 
     <p>Gold: {player.gold}, Cards: {player.hand.length}</p>
 
-      {player.name === playerName && (
-  <>
-    <input
-      type="number"
-      min={0}
-      placeholder="Enter bid"
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          handleBid(Number(e.target.value));
-          e.target.value = "";
-        }
-      }}
-    />
-    <button onClick={handlePass}>Pass</button>
-  </>
-)}
+    {
+      (() => {
+        console.log("🧍 I am:", playerName);
+        console.log("🎯 It is currently:", player.name, "'s turn");
+        console.log("🟨 Showing input?", player.name === playerName);
 
-    </div>
-  );
+        return player.name === playerName && (
+          <>
+            <input
+              type="number"
+              min={0}
+              placeholder="Enter bid"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleBid(Number(e.target.value));
+                  e.target.value = "";
+                }
+              }}
+            />
+            <button onClick={handlePass}>Pass</button>
+          </>
+        );
+      })()
+    }
+  </div>
+);
 };
 
 export default AuctionPhase;

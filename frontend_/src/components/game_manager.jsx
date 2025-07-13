@@ -38,6 +38,7 @@ const GameRunner = ({ playerName }) => {
   const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
   const [goldWinner, setGoldWinner] = useState(null);
   const [goldCard, setGoldCard] = useState(null);
+  const [inactiveBidders, setInactiveBidders] = useState({});
 
   //Building out what gameState is
   const buildGameState = () => ({
@@ -82,12 +83,18 @@ const GameRunner = ({ playerName }) => {
 
   // const hasSynced = { current: false };
 
-  socket.on("sync_game_state", (...args) => {
-  console.log("👂 df actually received sync_game_state");
+  socket.on("sync_game_state", (gameState) => {
+  console.log(`👂 ${playerName} received sync_game_state`);
+  console.log("🧠 Phase:", gameState.phase);
+  console.log("🎯 activePlayerIndex:", gameState.activePlayerIndex);
+  console.log("🎯 activeBidders:", gameState.activeBidders);
+  console.log("🎯 currentBid:", gameState.currentBid);
+  console.log("🎯 highestBidder:", gameState.highestBidder);
 });
   
   // Always attach this listener — it must run regardless of playerName
   const handleGameState = (gameState) => {
+    console.log("💥 Received sync_game_state with activePlayerIndex:", gameState.activePlayerIndex);
     if (hasSynced.current) {
       console.log("🛑 Skipping fallback — already synced once.");
     }
@@ -96,6 +103,7 @@ const GameRunner = ({ playerName }) => {
     console.log("💥 From player:", playerName);
     localStorage.setItem("last_game_state", JSON.stringify(gameState)); 
 
+    //For the Donation-Phase
     setPhase(gameState.phase);
     setDeck(gameState.deck);
     setDiscardPile(gameState.discardPile);
@@ -106,6 +114,7 @@ const GameRunner = ({ playerName }) => {
     console.log("📋 Full sharedPool contents:", JSON.stringify(gameState.sharedPool, null, 2));
 
 
+    //For Share Phase
     setPlayers(gameState.players);
     setCurrentPlayerIndex(gameState.currentPlayerIndex);
     setLastDonatorIndex(gameState.lastDonatorIndex);
@@ -125,6 +134,7 @@ const GameRunner = ({ playerName }) => {
     setSelectedPaymentCards(gameState.selectedPaymentCards ?? []);
     setGoldWinner(gameState.goldWinner ?? null);
     setGoldCard(gameState.goldCard ?? null);
+    setInactiveBidders(gameState.inactiveBidders ?? {});
   };
 
   // ✅ Use fallback *once* before listener
@@ -197,6 +207,26 @@ const GameRunner = ({ playerName }) => {
   };
 }, [playerName]);
 
+useEffect(() => {
+  if (phase === "auction" && activeBidders.length === 0) {
+    console.log("⚙️ Initializing auction phase setup...");
+
+    const auctionIndex = auctionStarterIndex ?? currentPlayerIndex;
+
+    const fullAuctionState = {
+      ...buildGameState(),
+      phase: "auction",
+      auctionStarterIndex: auctionIndex,
+      activePlayerIndex: auctionIndex,
+      currentBid: 0,
+      highestBidder: null,
+      currentCardIndex: 0,
+      activeBidders: players.map((_, i) => i), // ✅ allow all players to bid
+    };
+
+    broadcastState(fullAuctionState);
+  }
+}, [phase]);
 
 
 
@@ -290,10 +320,19 @@ const GameRunner = ({ playerName }) => {
       if (deck.length < players.length + 1) {
         setAuctionStarterIndex(nextPlayerIndex);
         setPhase("auction");
-        broadcastState({
-          auctionStarterIndex: nextPlayerIndex,
+        const updatedGameState = {
+          ...buildGameState(),
           phase: "auction",
-        });
+          auctionStarterIndex: nextPlayerIndex,
+          activePlayerIndex: nextPlayerIndex,
+          currentBid: 0,
+          highestBidder: null,
+          currentCardIndex: 0,
+          activeBidders: players.map((_, i) => i) // ✅ include everyone
+  };
+        console.log("🎯 Entering auction phase with gameState:", updatedGameState);
+
+        broadcastState(updatedGameState);
       } else {
         setCurrentPlayerIndex(nextPlayerIndex);
         setSharedPool([]);
@@ -324,8 +363,8 @@ const GameRunner = ({ playerName }) => {
           playerName={playerName}
           broadcastState={broadcastState}
 
-          //AuctionState
 
+          //AuctionState
           currentCardIndex={currentCardIndex}
           setCurrentCardIndex={setCurrentCardIndex}
           currentBid={currentBid}
@@ -348,6 +387,8 @@ const GameRunner = ({ playerName }) => {
           setGoldWinner={setGoldWinner}
           goldCard={goldCard}
           setGoldCard={setGoldCard}
+          inactiveBidders={inactiveBidders}
+          setInactiveBidders={setInactiveBidders}
         />
       )}
 

@@ -2,7 +2,7 @@
 
 export function buildDeck() {
   const card_q = { 1: 1, 2: 0, 3: 0, 4: 0 };
-  const resourceTypes = ["Religion", "Science", "Military", "Art", "Herbs"];
+  const resourceTypes = ["Religion"]; //,"Science", "Military", "Art", "Herbs"
   const tieBreakers = ["A", "B", "C", "D"];
   const deck = [];
 
