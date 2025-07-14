@@ -1,6 +1,8 @@
 import Card from "./card";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 
+
+
 const AuctionPhase = ({
   players,
   discardPile,
@@ -38,6 +40,39 @@ const AuctionPhase = ({
   setInactiveBidders,
 }) => {
 
+  const [auctionTurnOffset, setAuctionTurnOffset] = useState(
+    (lastDonatorIndex + 1) % players.length
+  );
+
+  const biddingOrder = useMemo(() => {
+    return players.map((_, i) => players[(auctionTurnOffset + i) % players.length]);
+  }, [players, auctionTurnOffset]);
+
+  const currentCard = discardPile[currentCardIndex];
+  const isGold = currentCard?.type === "Gold";
+  const player = biddingOrder[activePlayerIndex];
+
+   const broadcastAuctionState = (overrides = {}) => {
+    broadcastState({
+      phase: "auction",
+      players,
+      discardPile,
+      currentCardIndex,
+      currentBid,
+      highestBidder,
+      activeBidders,
+      activePlayerIndex,
+      inactiveBidders,
+      awaitingGoldPayment,
+      goldPaymentWinner,
+      awaitingCardPayment,
+      selectedPaymentCards,
+      goldWinner,
+      goldCard,
+      ...overrides,
+    });
+  };
+
   useEffect(() => {
   console.log("🚀 Auction phase started!");
   console.log("🎯 Initial activePlayerIndex:", activePlayerIndex);
@@ -62,17 +97,7 @@ const AuctionPhase = ({
   });
 }, []);
  
-  const [auctionTurnOffset, setAuctionTurnOffset] = useState(
-    (lastDonatorIndex + 1) % players.length
-  );
-
-  const biddingOrder = useMemo(() => {
-    return players.map((_, i) => players[(auctionTurnOffset + i) % players.length]);
-  }, [players, auctionTurnOffset]);
-
-  const currentCard = discardPile[currentCardIndex];
-  const isGold = currentCard?.type === "Gold";
-  const player = biddingOrder[activePlayerIndex];
+  
   // const [inactiveBidders, setInactiveBidders] = useState({}); Being passed in through game_manager
 
   useEffect(() => {
@@ -95,50 +120,56 @@ const AuctionPhase = ({
   };
 
   const handleBid = (amount) => {
-    if (isGold && amount > player.hand.length) return;
-    if (!isGold && amount > player.gold) return;
+  if (isGold && amount > player.hand.length) return;
+  if (!isGold && amount > player.gold) return;
 
+  const isFirstBid = highestBidder === null;
+  if (!isFirstBid && amount <= currentBid) {
+    return alert("Bid too low!");
+  }
 
-    const isFirstBid = highestBidder === null;
-    if (!isFirstBid && amount <= currentBid) {
-      return alert("Bid too low!");
-    }
+  const updated = [...activeBidders];
+  updated[activePlayerIndex] = true;
 
-    const updated = [...activeBidders];
-    updated[activePlayerIndex] = true;
+  const stillIn = updated.filter(Boolean).length;
 
-    setCurrentBid(amount);
-    setHighestBidder(activePlayerIndex);
-    setActiveBidders(updated);
+  let next = (activePlayerIndex + 1) % players.length;
+  while (!updated[next]) {
+    next = (next + 1) % players.length;
+  }
 
-    broadcastState({
+  setCurrentBid(amount);
+  setHighestBidder(activePlayerIndex);
+  setActiveBidders(updated);
+  setActivePlayerIndex(next);
+
+  broadcastAuctionState({
     currentBid: amount,
     highestBidder: activePlayerIndex,
     activeBidders: updated,
-    activePlayerIndex: (activePlayerIndex + 1) % players.length, // optimistic turn rotation
-    inactiveBidders,
+    activePlayerIndex: next
   });
 
-    const stillIn = updated.filter(Boolean).length;
-    if (stillIn === 1) {
-      finishAuction(updated, activePlayerIndex);
-    } else {
-      nextPlayer();
-    }
-  };
+  if (stillIn === 1) {
+    finishAuction(updated, activePlayerIndex);
+  }
+};
 
   const handlePass = () => {
-    console.log(`🚫 ${playerName} is passing from index ${activePlayerIndex}`);
 
-    const currentIndex = players.findIndex(p => p.name === playerName);
-    const newInactive = { ...inactiveBidders, [currentIndex]: true };
+    const biddingIndex = activePlayerIndex; // correct index in biddingOrder
+    const currentName = biddingOrder[biddingIndex].name;
+    console.log(`🚫 ${playerName} is passing from index ${biddingIndex} (${currentName})`);
+
+    const newInactive = { ...inactiveBidders, [biddingIndex]: true };
     setInactiveBidders(newInactive);
-
     
-    const stillActive = players.filter((_, i) => !newInactive[i]);
+    
+    const stillActive = biddingOrder.filter((_, i) => !newInactive[i]);
 
     console.log("🪪 newInactive:", newInactive);
     console.log("✅ stillActive players:", stillActive.map(p => p.name));
+
     const hasBid = highestBidder !== null;
 
    if (stillActive.length === 0) {
@@ -146,14 +177,14 @@ const AuctionPhase = ({
     } else if (stillActive.length === 1 && hasBid) {
       finishAuction(activeBidders, highestBidder);
     } else {
-      console.log(`📤 ${playerName} is passing from index ${activePlayerIndex}`);
+      console.log(`📤 ${playerName} is passing from index ${biddingIndex}`);
 
-      let next = (activePlayerIndex + 1) % players.length;
+      let next = (biddingIndex + 1) % biddingOrder.length;
       while (newInactive[next]) {
-        next = (next + 1) % players.length;
+        next = (next + 1) % biddingOrder.length;
       }
 
-      console.log(`➡️ Next active player: ${players[next].name} (${next})`);
+      console.log(`➡️ Next active player: ${biddingOrder[next].name} (${next})`);
 
       setActivePlayerIndex(next);
       broadcastState({
@@ -175,17 +206,28 @@ const AuctionPhase = ({
 };
 
   const finishAuction = (finalBidders, winnerIndex) => {
+    const nextAuctionStarter = (auctionTurnOffset + 1) % players.length; // 🔁 NEXT auction starter
+    setAuctionTurnOffset(nextAuctionStarter);
   if (winnerIndex == null) {
     alert("No one bid — card discarded.");
+    
+    setHighestBidder(null);
+    setCurrentBid(0);
+    setActiveBidders(players.map(() => true));
+    setInactiveBidders({});
+    setActivePlayerIndex(nextAuctionStarter); // ✅ start next auction at correct player
 
-    broadcastState({
-      discardPile: discardPile.slice(1), // remove the top card
+     broadcastState({
+      discardPile: discardPile.slice(1),
       currentCardIndex: currentCardIndex + 1,
       highestBidder: null,
       currentBid: 0,
       activeBidders: players.map(() => true),
-      activePlayerIndex: 0,
+      inactiveBidders: {},
+      activePlayerIndex: nextAuctionStarter, // ✅ rotate properly
     });
+
+    return;
   } else {
     const updatedPlayers = [...players];
     const winnerName = biddingOrder[winnerIndex].name;
@@ -200,13 +242,14 @@ const AuctionPhase = ({
       setAwaitingCardPayment(true);
       setGoldWinner({ player: winner, index: winnerIdx });
       setGoldCard(currentCard);
-
       setPlayers(updatedPlayers);
+
       broadcastState({
         players: updatedPlayers,
         awaitingCardPayment: true,
         goldWinner: { player: winner, index: winnerIdx },
         goldCard: currentCard,
+        currentCardIndex: currentCardIndex + 1,
       });
 
       return;
@@ -217,6 +260,8 @@ const AuctionPhase = ({
       setGoldPaymentWinner({ player: winner, index: winnerIdx, card: currentCard });
 
       setPlayers(updatedPlayers);
+      setCurrentCardIndex(currentCardIndex + 1);  
+
       broadcastState({
         players: updatedPlayers,
         awaitingGoldPayment: true,
@@ -241,6 +286,7 @@ const AuctionPhase = ({
     setActivePlayerIndex(0); // always start at index 0 of the new biddingOrder
     setCurrentBid(0);
     setInactiveBidders({});
+    
 
     broadcastState({
       currentCardIndex: currentCardIndex + 1,
@@ -268,6 +314,15 @@ const AuctionPhase = ({
 
   // 🔶 Non-gold card won → pay with gold cards
   if (awaitingGoldPayment && goldPaymentWinner) {
+    if (!goldPaymentWinner || !goldPaymentWinner.player) {
+    return <p>Waiting for payment...</p>;
+  }
+
+    if (goldPaymentWinner.player.name !== playerName) {
+    return <p>Waiting for {goldPaymentWinner.player.name} to pay gold...</p>;
+  }
+
+    
     const toggleGoldCardSelection = (card, idx) => {
       if (card.type !== "Gold") return;
       setSelectedPaymentCards((prev) => {
@@ -305,6 +360,7 @@ const AuctionPhase = ({
   setAwaitingGoldPayment(false);
   setSelectedPaymentCards([]);
   setCurrentBid(0);
+
   setCurrentCardIndex((prev) => prev + 1);
   setHighestBidder(null);
   setActiveBidders(players.map(() => true));
@@ -353,6 +409,9 @@ const AuctionPhase = ({
 
   // 🔶 Gold card won → discard equal number of cards
   if (awaitingCardPayment && goldWinner) {
+    if (goldWinner.player.name !== playerName) {
+    return <p>Waiting for {goldWinner.player.name} to discard cards...</p>;
+  }
     const toggleCardSelection = (card, idx) => {
       setSelectedPaymentCards((prev) => {
         const alreadySelected = prev.find((c) => c.idx === idx);

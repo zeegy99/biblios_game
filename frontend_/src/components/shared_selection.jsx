@@ -40,7 +40,7 @@ const SharedPoolSelection = ({
   newPool.splice(choiceIdx, 1);
 
   const updatedPlayers = players.map((p, i) => {
-    if (i !== sharedSelectionIndex) return p;
+    if (i !== sharedSelectionIndex) return { ...p };
     return {
       ...p,
       hand: [...p.hand, chosenCard],
@@ -71,7 +71,18 @@ const SharedPoolSelection = ({
 
     const next = (sharedSelectionIndex + 1) % players.length;
     if (next === lastDonatorIndex) {
-      onFinish();
+      console.log("I AM FIRING I AM FIRING I AM FIRING")
+      setPlayers(() => updatedPlayers);
+      broadcastState({
+          phase: "shared_selection",
+          sharedSelectionIndex,
+          sharedPool: newPool,
+          players: updatedPlayers,
+        });
+
+        setTimeout(() => {
+          onFinish();  // let React state settle before final phase switch
+        }, 50);
     } else {
       console.log("➡️ Moving to next player after broadcasting...");
       broadcastState({
@@ -88,20 +99,7 @@ const SharedPoolSelection = ({
 
 
 
-  // const nextPlayer = () => {
-  //   const next = (sharedSelectionIndex + 1) % players.length;
-  //   if (next === lastDonatorIndex) {
-  //     onFinish();
-  //   } else {
-  //     broadcastState({ 
-  //       sharedSelectionIndex: next,
-  //       players: latestPlayers,
-  //       sharedPool: latestPool
-  //     });
-  //   }
-  // };
 
-  // Empty pool, end selection immediately if it's current player's turn
   if (!sharedPool.length && isCurrentPlayer) {
     onFinish();
     return <p>No cards left in shared pool.</p>;

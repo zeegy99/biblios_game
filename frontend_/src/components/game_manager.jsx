@@ -235,6 +235,8 @@ useEffect(() => {
     return <div>Waiting for game state to initialize...</div>;
   }
 
+  console.log("🧠 Rendered players state:", players);  // ✅ this is the safe spot
+
   const currentPlayer = players[currentPlayerIndex];
 
   const advancePhase = () => {
@@ -414,7 +416,7 @@ useEffect(() => {
       {/* {phase !== "donation" && phase !== "shared" && (
         <button onClick={advancePhase}>Next Phase</button>
       )} */}
-
+      
       <div>
         {players.map((p, i) => (
           <p key={i}>
