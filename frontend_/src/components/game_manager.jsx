@@ -11,7 +11,7 @@ import socket from "../socket";
 import { useLocation } from "react-router-dom";
 
 const GameRunner = ({ playerName }) => {
-  console.log("🧠 GameRunner mounted with playerName:", playerName);
+  // console.log("🧠 GameRunner mounted with playerName:", playerName);
   const hasSynced = useRef(false);
   const [auctionStarterIndex, setAuctionStarterIndex] = useState(null);
   const [sharedSelectionIndex, setSharedSelectionIndex] = useState(0);
@@ -26,6 +26,19 @@ const GameRunner = ({ playerName }) => {
   const [lastDonatorIndex, setLastDonatorIndex] = useState(null);
   const [finalPhaseDone, setFinalPhaseDone] = useState(false);
 
+  //For Auctions
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [currentBid, setCurrentBid] = useState(0);
+  const [highestBidder, setHighestBidder] = useState(null);
+  const [activePlayerIndex, setActivePlayerIndex] = useState(0);
+  const [activeBidders, setActiveBidders] = useState([]);
+  const [awaitingGoldPayment, setAwaitingGoldPayment] = useState(false);
+  const [goldPaymentWinner, setGoldPaymentWinner] = useState(null);
+  const [awaitingCardPayment, setAwaitingCardPayment] = useState(false);
+  const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
+  const [goldWinner, setGoldWinner] = useState(null);
+  const [goldCard, setGoldCard] = useState(null);
+
   //Building out what gameState is
   const buildGameState = () => ({
     phase,
@@ -38,6 +51,19 @@ const GameRunner = ({ playerName }) => {
     sharedSelectionIndex,
     dice,
     finalPhaseDone,
+
+     // 🔽 Auction state
+    currentCardIndex,
+    currentBid,
+    highestBidder,
+    activePlayerIndex,
+    activeBidders,
+    awaitingGoldPayment,
+    goldPaymentWinner,
+    awaitingCardPayment,
+    selectedPaymentCards,
+    goldWinner,
+    goldCard,
   });
 
   const broadcastState = (newPartialState = null) => {
@@ -46,7 +72,7 @@ const GameRunner = ({ playerName }) => {
     ...newPartialState        // ⬅️ overwrite any fields provided
   };
   console.log("📤 Broadcasting FULL game state:", fullState);
-  console.log("🧺 Broadcast sharedPool:", fullState.sharedPool);
+  // console.log("🧺 Broadcast sharedPool:", fullState.sharedPool);
   socket.emit("sync_game_state", { room: "biblios", gameState: fullState });
 };
 
@@ -63,26 +89,54 @@ const GameRunner = ({ playerName }) => {
   // Always attach this listener — it must run regardless of playerName
   const handleGameState = (gameState) => {
     if (hasSynced.current) {
-      console.log("🛑 Skipping fallback — already synced once.");
+      // console.log("🛑 Skipping fallback — already synced once.");
     }
     hasSynced.current = true;
-    console.log("This is the gamestate", gameState)
-    console.log("💥 From player:", playerName);
+    // console.log("This is the gamestate", gameState)
+    // console.log("💥 From player:", playerName);
     localStorage.setItem("last_game_state", JSON.stringify(gameState)); 
 
     setPhase(gameState.phase);
     setDeck(gameState.deck);
     setDiscardPile(gameState.discardPile);
-    setSharedPool(gameState.sharedPool ?? []);
 
-    console.log("📥 Synced sharedPool on client:", gameState.sharedPool);
+    setSharedPool([...gameState.sharedPool]);  // ✅ ensure clone to trigger re-render
+    // console.log("📥 Synced sharedPool on client:", gameState.sharedPool);
+    // console.log("🧮 SharedPool length:", gameState.sharedPool?.length);
+    // console.log("📋 Full sharedPool contents:", JSON.stringify(gameState.sharedPool, null, 2));
+
+
     setPlayers(gameState.players);
     setCurrentPlayerIndex(gameState.currentPlayerIndex);
     setLastDonatorIndex(gameState.lastDonatorIndex);
     setDice(gameState.dice);
     setSharedSelectionIndex(gameState.sharedSelectionIndex ?? 0);
     setFinalPhaseDone(gameState.finalPhaseDone);
+
+    //Auctions
+    setCurrentCardIndex(gameState.currentCardIndex ?? 0);
+    setCurrentBid(gameState.currentBid ?? 0);
+    setHighestBidder(gameState.highestBidder);
+    setActivePlayerIndex(gameState.activePlayerIndex ?? 0);
+    setActiveBidders(gameState.activeBidders ?? []);
+    setAwaitingGoldPayment(gameState.awaitingGoldPayment ?? false);
+    setGoldPaymentWinner(gameState.goldPaymentWinner ?? null);
+    setAwaitingCardPayment(gameState.awaitingCardPayment ?? false);
+    setSelectedPaymentCards(gameState.selectedPaymentCards ?? []);
+    setGoldWinner(gameState.goldWinner ?? null);
+    setGoldCard(gameState.goldCard ?? null);
   };
+
+  // ✅ Use fallback *once* before listener
+  if (!hasSynced.current) {
+    const cached = localStorage.getItem("last_game_state");
+    if (cached) {
+      console.log("📦 Using cached game state");
+      handleGameState(JSON.parse(cached));
+    }
+  }
+
+
   socket.on("sync_game_state", handleGameState);
 
   
@@ -131,14 +185,8 @@ const GameRunner = ({ playerName }) => {
       }
     }
 
-    const cachedGameState = localStorage.getItem("last_game_state");
-    if (cachedGameState) {
-      console.log("📦 Using cached game state");
-      handleGameState(JSON.parse(cachedGameState));
-    }
-
     socket.on("player_list", (list) => {
-      console.log("📡 player_list received:", list);
+      // console.log("📡 player_list received:", list);
       setPlayersOnline(list);
     });
   }
@@ -273,6 +321,33 @@ const GameRunner = ({ playerName }) => {
           setPlayers={setPlayers}
           lastDonatorIndex={lastDonatorIndex}
           auctionStarterIndex={auctionStarterIndex}
+          playerName={playerName}
+          broadcastState={broadcastState}
+
+          //AuctionState
+
+          currentCardIndex={currentCardIndex}
+          setCurrentCardIndex={setCurrentCardIndex}
+          currentBid={currentBid}
+          setCurrentBid={setCurrentBid}
+          highestBidder={highestBidder}
+          setHighestBidder={setHighestBidder}
+          activePlayerIndex={activePlayerIndex}
+          setActivePlayerIndex={setActivePlayerIndex}
+          activeBidders={activeBidders}
+          setActiveBidders={setActiveBidders}
+          awaitingGoldPayment={awaitingGoldPayment}
+          setAwaitingGoldPayment={setAwaitingGoldPayment}
+          goldPaymentWinner={goldPaymentWinner}
+          setGoldPaymentWinner={setGoldPaymentWinner}
+          awaitingCardPayment={awaitingCardPayment}
+          setAwaitingCardPayment={setAwaitingCardPayment}
+          selectedPaymentCards={selectedPaymentCards}
+          setSelectedPaymentCards={setSelectedPaymentCards}
+          goldWinner={goldWinner}
+          setGoldWinner={setGoldWinner}
+          goldCard={goldCard}
+          setGoldCard={setGoldCard}
         />
       )}
 

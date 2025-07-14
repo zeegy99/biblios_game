@@ -38,62 +38,68 @@ const SharedPoolSelection = ({
 
   const newPool = [...sharedPool];
   newPool.splice(choiceIdx, 1);
-  setSharedPool(newPool);
-  console.log("🧺 New sharedPool after removal:", newPool);
 
   const updatedPlayers = players.map((p, i) => {
-  if (i !== sharedSelectionIndex) return p;
-  return {
-    ...p,
-    hand: [...p.hand, chosenCard],
-    gold: p.gold + (chosenCard.type === "Gold" ? chosenCard.value : 0),
-  };
-});
+    if (i !== sharedSelectionIndex) return p;
+    return {
+      ...p,
+      hand: [...p.hand, chosenCard],
+      gold: p.gold + (chosenCard.type === "Gold" ? chosenCard.value : 0),
+    };
+  });
 
-console.log("🃏 Hand after taking card:", updatedPlayers[sharedSelectionIndex].hand);
-console.log("SharedPool after taking card: ")
+  console.log("🃏 Hand after taking card:", updatedPlayers[sharedSelectionIndex].hand);
+  console.log("🧺 New sharedPool after removal:", newPool);
 
-
-
-  
+  setSharedPool(newPool);
   setPlayers(() => {
-  console.log("🖐 Hands after selection:");
-  updatedPlayers.forEach((p) => {
-    console.log(`   👤 ${p.name}:`, p.hand.map(card => `${card.type} ${card.value}`));
+    console.log("🖐 Hands after selection:");
+    updatedPlayers.forEach((p) => {
+      console.log(`   👤 ${p.name}:`, p.hand.map(card => `${card.type} ${card.value}`));
+    });
+    return updatedPlayers;
   });
 
-  const lastIndex = (sharedSelectionIndex - 1 + updatedPlayers.length) % updatedPlayers.length;
-  const lastPlayer = updatedPlayers[lastIndex];
-  console.log(`📌 Last player to act was: ${lastPlayer.name}`);
-  console.log(`   📜 Their hand:`, lastPlayer.hand.map(card => `${card.type} ${card.value}`));
-  return updatedPlayers;
-});
+    setTimeout(() => {
+    console.log("📡 Broadcasting updated state after timeout");
+    broadcastState({
+      phase: "shared_selection",
+      sharedSelectionIndex,
+      sharedPool: newPool,
+      players: updatedPlayers,
+    });
 
-  console.log("🧑‍🤝‍🧑 Updated players after choice:", updatedPlayers);
-
-  broadcastState({
-    sharedPool: newPool,
-    players: updatedPlayers,
-    sharedSelectionIndex,
-    phase: "shared_selection",
-  });
-
-  setTimeout(() => {
-    console.log("➡️ Moving to next player after broadcasting...");
-    nextPlayer();
-  }, 200);
-};
-
-
-
-  const nextPlayer = () => {
     const next = (sharedSelectionIndex + 1) % players.length;
     if (next === lastDonatorIndex) {
       onFinish();
     } else {
-      broadcastState({ sharedSelectionIndex: next });
+      console.log("➡️ Moving to next player after broadcasting...");
+      broadcastState({
+        sharedSelectionIndex: next,
+        sharedPool: newPool,
+        players: updatedPlayers,
+        phase: "shared_selection",
+      });
     }
-  };
+  }, 100);
+
+};
+
+
+
+
+  // const nextPlayer = () => {
+  //   const next = (sharedSelectionIndex + 1) % players.length;
+  //   if (next === lastDonatorIndex) {
+  //     onFinish();
+  //   } else {
+  //     broadcastState({ 
+  //       sharedSelectionIndex: next,
+  //       players: latestPlayers,
+  //       sharedPool: latestPool
+  //     });
+  //   }
+  // };
 
   // Empty pool, end selection immediately if it's current player's turn
   if (!sharedPool.length && isCurrentPlayer) {
