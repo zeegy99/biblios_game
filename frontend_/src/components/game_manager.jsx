@@ -101,9 +101,7 @@ const GameRunner = ({ playerName }) => {
     setDiscardPile(gameState.discardPile);
 
     setSharedPool([...gameState.sharedPool]);  // ✅ ensure clone to trigger re-render
-    // console.log("📥 Synced sharedPool on client:", gameState.sharedPool);
-    // console.log("🧮 SharedPool length:", gameState.sharedPool?.length);
-    // console.log("📋 Full sharedPool contents:", JSON.stringify(gameState.sharedPool, null, 2));
+    
 
 
     setPlayers(gameState.players);
@@ -186,7 +184,7 @@ const GameRunner = ({ playerName }) => {
     }
 
     socket.on("player_list", (list) => {
-      // console.log("📡 player_list received:", list);
+      console.log("📡 player_list received:", list);
       setPlayersOnline(list);
     });
   }
@@ -275,6 +273,7 @@ const GameRunner = ({ playerName }) => {
     sharedPool={sharedPool}
     setSharedPool={setSharedPool}
     discardPile={discardPile}
+    phase = {phase}
     setPlayers={setPlayers}
     setPlayerGold={(updateFn) =>
       setPlayers((prev) =>
@@ -285,24 +284,39 @@ const GameRunner = ({ playerName }) => {
       )
     }
     onFinish={() => {
-      const nextPlayerIndex = (lastDonatorIndex + 1) % players.length;
+      console.log(`🏁 [${playerName}] SharedPoolSelection onFinish called`);
+      console.log(`   - Current phase: ${phase}`);
+      console.log(`   - lastDonatorIndex: ${lastDonatorIndex}`);
+      console.log(`   - deck length: ${deck.length}`);
+      console.log(`   - players length: ${players.length}`);
 
+      const nextPlayerIndex = (lastDonatorIndex + 1) % players.length;
+      console.log(`   - nextPlayerIndex: ${nextPlayerIndex}`);
       if (deck.length < players.length + 1) {
-        setAuctionStarterIndex(nextPlayerIndex);
-        setPhase("auction");
-        broadcastState({
-          auctionStarterIndex: nextPlayerIndex,
-          phase: "auction",
-        });
+        console.log("🎯 Switching to auction phase — NO broadcast here");
+    setAuctionStarterIndex(nextPlayerIndex);
+    setPhase("auction");
+
+    setTimeout(() => {
+      broadcastState({
+        auctionStarterIndex: nextPlayerIndex,
+        phase: "auction",
+      });
+    }, 50);
       } else {
+        console.log(`🔄 [${playerName}] Continuing to next donation round — NO broadcast here`);
         setCurrentPlayerIndex(nextPlayerIndex);
         setSharedPool([]);
         setPhase("donation");
-        broadcastState({
-          currentPlayerIndex: nextPlayerIndex,
-          sharedPool: [],  // ✅ broadcast cleared pool
-          phase: "donation",
-        });
+
+        setTimeout(() => {
+      broadcastState({
+        currentPlayerIndex: nextPlayerIndex,
+        sharedPool: [],
+        phase: "donation",
+      });
+    }, 50);
+        
       }
     }}
     sharedSelectionIndex={sharedSelectionIndex}

@@ -1,5 +1,6 @@
 import React from "react";
 import Card from "./card";
+import {useEffect} from "react";
 
 const SharedPoolSelection = ({
   players,
@@ -13,8 +14,15 @@ const SharedPoolSelection = ({
   sharedSelectionIndex,
   lastDonatorIndex,
   playerName,
+  phase,
 }) => {
 
+  if (phase !== "shared_selection") {
+    console.log(`🚫 [${playerName}] SharedPoolSelection rendered but phase is: ${phase}`);
+    return null;
+  }
+
+  
   console.log("🧑‍🤝‍🧑 Players from df's POV:", players);
   console.log("🃏 Hands from df:", players.map(p => ({ name: p.name, hand: p.hand })));
 
@@ -48,69 +56,45 @@ const SharedPoolSelection = ({
     };
   });
 
-  console.log("🃏 Hand after taking card:", updatedPlayers[sharedSelectionIndex].hand);
-  console.log("🧺 New sharedPool after removal:", newPool);
-
   setSharedPool(newPool);
-  setPlayers(() => {
-    console.log("🖐 Hands after selection:");
-    updatedPlayers.forEach((p) => {
-      console.log(`   👤 ${p.name}:`, p.hand.map(card => `${card.type} ${card.value}`));
-    });
-    return updatedPlayers;
-  });
+  setPlayers(updatedPlayers);
 
-    setTimeout(() => {
-    console.log("📡 Broadcasting updated state after timeout");
-    broadcastState({
-      phase: "shared_selection",
-      sharedSelectionIndex,
-      sharedPool: newPool,
-      players: updatedPlayers,
-    });
-
-    const next = (sharedSelectionIndex + 1) % players.length;
+  const next = (sharedSelectionIndex + 1) % players.length;
+  
+  setTimeout(() => {
     if (next === lastDonatorIndex) {
-      onFinish();
+      console.log("I AM ABOUT TO BROADCAST FROM THE next === last DonatorIndex part of shared_selection")
+       broadcastState({
+    phase: "shared_selection", // or even "donation", both will sync
+    sharedSelectionIndex,
+    sharedPool: newPool,
+    players: updatedPlayers,
+  });
+      onFinish(); 
     } else {
-      console.log("➡️ Moving to next player after broadcasting...");
+      // Single broadcast with next player's turn
+
+      console.log("I AM ABOUT TO BROADCAST FROM THE ELSE PART OF SHARED_SELECTION")
       broadcastState({
+        phase: "shared_selection",
         sharedSelectionIndex: next,
         sharedPool: newPool,
         players: updatedPlayers,
-        phase: "shared_selection",
       });
     }
   }, 100);
-
 };
 
 
-
-
-  // const nextPlayer = () => {
-  //   const next = (sharedSelectionIndex + 1) % players.length;
-  //   if (next === lastDonatorIndex) {
-  //     onFinish();
-  //   } else {
-  //     broadcastState({ 
-  //       sharedSelectionIndex: next,
-  //       players: latestPlayers,
-  //       sharedPool: latestPool
-  //     });
-  //   }
-  // };
-
-  // Empty pool, end selection immediately if it's current player's turn
+  useEffect(() => {
   if (!sharedPool.length && isCurrentPlayer) {
-    onFinish();
-    return <p>No cards left in shared pool.</p>;
+    onFinish(); // ✅ Safe inside effect
   }
+}, [sharedPool, isCurrentPlayer, onFinish]);
 
-  // Passive waiting if not current player and pool is empty
-  if (!sharedPool.length) {
-    return <p>Waiting for other players...</p>;
-  }
+if (!sharedPool.length && !isCurrentPlayer) {
+  return <p>Waiting for other players...</p>;
+}
 
   return (
     <div>
