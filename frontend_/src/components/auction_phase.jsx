@@ -39,6 +39,11 @@ const AuctionPhase = ({
   console.log("🧠 AuctionPhase mounted");
   console.log("📋 Initial activeBidders:", activeBidders);
 
+  console.log("🧾 Discard pile at mount:", discardPile);
+  console.log("🧾 Current card index:", currentCardIndex);
+  console.log("🧾 Card at index:", discardPile[currentCardIndex]);
+
+
   useEffect(() => {
     if (activeBidders.length === 0) {
       const allIn = players.map(() => true);
@@ -82,6 +87,12 @@ const AuctionPhase = ({
   const isGold = currentCard?.type === "Gold";
   const player = biddingOrder[activePlayerIndex];
 
+  console.log("📦 playerName:", playerName);
+console.log("📦 auctionTurnOffset:", auctionTurnOffset);
+console.log("📦 activePlayerIndex:", activePlayerIndex);
+console.log("📦 biddingOrder:", biddingOrder.map(p => p.name));
+console.log("📦 Current player expected to bid:", biddingOrder[activePlayerIndex].name);
+
   const getNextActivePlayerIndex = () => {
   let next = (activePlayerIndex + 1) % players.length;
   while (!activeBidders[next]) {
@@ -92,8 +103,10 @@ const AuctionPhase = ({
 
   const handleBid = (amount) => {
     if (isGold && amount > player.hand.length) return;
-    if (!isGold && amount > player.gold) return;
+    if (!isGold && amount > player.gold) {
 
+      return alert("You don't have enough gold");
+    }
 
     const isFirstBid = highestBidder === null;
     if (!isFirstBid && amount <= currentBid) {
@@ -230,6 +243,7 @@ if (updatedDiscardPile.length > 0) {
     activeBidders: players.map(() => true),
     activePlayerIndex: 0,
     currentBid: 0,
+    auctionTurnOffset: (auctionTurnOffset + 1) % players.length,
   });
 } else {
   setPhase("scoring");
@@ -301,17 +315,21 @@ if (updatedDiscardPile.length > 0) {
   setAuctionTurnOffset((prev) => (prev + 1) % players.length);
   setActivePlayerIndex(0);
 
+  console.log("🔄 I am right before broadcaststate in confirmGoldPayment, Incremented auctionTurnOffset to:", (auctionTurnOffset + 1) % players.length);
+
   broadcastState({
     players: updatedPlayers,
     awaitingGoldPayment: false,
     selectedPaymentCards: [],
     currentBid: 0,
-    currentCardIndex: currentCardIndex + 1,
+    currentCardIndex: 0,
     highestBidder: null,
     activeBidders: players.map(() => true),
     activePlayerIndex: 0,
     discardPile: updatedDiscardPile,
+    auctionTurnOffset: (auctionTurnOffset + 1) % players.length,
   });
+  console.log("📤 Broadcasting updated discard pile after the broadcaststate in the confirmgoldpayment:", updatedDiscardPile);
 };
 
 
@@ -397,6 +415,7 @@ if (updatedDiscardPile.length > 0) {
       awaitingCardPayment: false,
       selectedPaymentCards: [],
       currentBid: 0,
+      discardPile: updatedDiscardPile,
   });
     };
 

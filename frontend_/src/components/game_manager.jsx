@@ -38,6 +38,8 @@ const GameRunner = ({ playerName }) => {
   const [selectedPaymentCards, setSelectedPaymentCards] = useState([]);
   const [goldWinner, setGoldWinner] = useState(null);
   const [goldCard, setGoldCard] = useState(null);
+  const [auctionTurnOffset, setAuctionTurnOffset] = useState(0);
+
 
   //Building out what gameState is
   const buildGameState = () => ({
@@ -64,6 +66,7 @@ const GameRunner = ({ playerName }) => {
     selectedPaymentCards,
     goldWinner,
     goldCard,
+    auctionTurnOffset,
   });
 
   const broadcastState = (newPartialState = null) => {
@@ -123,6 +126,8 @@ const GameRunner = ({ playerName }) => {
     setSelectedPaymentCards(gameState.selectedPaymentCards ?? []);
     setGoldWinner(gameState.goldWinner ?? null);
     setGoldCard(gameState.goldCard ?? null);
+    setAuctionTurnOffset(gameState.auctionTurnOffset ?? 0);
+
   };
 
   // ✅ Use fallback *once* before listener
@@ -169,6 +174,7 @@ const GameRunner = ({ playerName }) => {
           lastDonatorIndex: null,
           dice: null,
           finalPhaseDone: false,
+          auctionTurnOffset: 0,  // ✅ Add this line
         };
         console.log("👑 Host broadcasting initial game state:", state);
         socket.emit("sync_game_state", { room: "biblios", gameState: state });
@@ -366,6 +372,8 @@ const GameRunner = ({ playerName }) => {
           setGoldWinner={setGoldWinner}
           goldCard={goldCard}
           setGoldCard={setGoldCard}
+          auctionTurnOffset={auctionTurnOffset}
+          setAuctionTurnOffset={setAuctionTurnOffset}
         />
       )}
 
