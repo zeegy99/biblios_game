@@ -74,12 +74,18 @@ const GameRunner = ({ playerName }) => {
     ...buildGameState(),      // ⬅️ get the full current state
     ...newPartialState        // ⬅️ overwrite any fields provided
   };
-  console.log("📤 Broadcasting FULL game state:", fullState);
+  console.log("📤 Broadcasting FULL game state:", fullState, playerName);
   socket.emit("sync_game_state", { room: "biblios", gameState: fullState });
 };
 
-//⬅️ First UseEffect
- useEffect(() => {
+useEffect(() => {
+  if (phase === "auction") {
+    console.log("🧾 Entering Auction Phase — FULL game state:");
+    console.log(buildGameState());
+  }
+}, [phase]);
+
+useEffect(() => {
   console.log("📡 GameManager useEffect ran");
 
 
@@ -100,7 +106,7 @@ const GameRunner = ({ playerName }) => {
     setPhase(gameState.phase);
     setDeck(gameState.deck);
     console.log("🃏 Deck received in GameRunner:", gameState.deck);
-    console.log("📦 Deck length:", gameState.deck.length);
+    console.log("📦 Deck length:", gameState.deck.length, playerName);
     setDiscardPile(gameState.discardPile);
 
     setSharedPool([...gameState.sharedPool]);  // ✅ ensure clone to trigger re-render
@@ -133,10 +139,10 @@ const GameRunner = ({ playerName }) => {
   // ✅ Use fallback *once* before listener
   if (!hasSynced.current) {
     const cached = localStorage.getItem("last_game_state");
-    if (cached) {
-      console.log("📦 Using cached game state");
-      handleGameState(JSON.parse(cached));
-    }
+    // if (cached) {
+    //   console.log("📦 Using cached game state");
+    //   handleGameState(JSON.parse(cached));
+    // }
   }
 
 
@@ -293,13 +299,7 @@ const GameRunner = ({ playerName }) => {
       )
     }
     onFinish={() => {
-      console.log(`🏁 [${playerName}] SharedPoolSelection onFinish called`);
-      console.log(`   - Current phase: ${phase}`);
-      console.log(`   - lastDonatorIndex: ${lastDonatorIndex}`);
-      console.log(`   - deck length: ${deck.length}`);
-      console.log(`   - players length: ${players.length}`);
-      console.log(`   - deck contents:`, deck);
-
+  
       const nextPlayerIndex = (lastDonatorIndex + 1) % players.length;
       console.log(`   - nextPlayerIndex: ${nextPlayerIndex}`);
       if (deck.length < players.length + 1) {
@@ -336,7 +336,6 @@ const GameRunner = ({ playerName }) => {
 )}
 
       {phase === "auction" && (
-        console.log("🎴 Deck at donation phase start:", deck),
         <AuctionPhase
           players={players}
           discardPile={discardPile}

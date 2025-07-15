@@ -56,33 +56,29 @@ const SharedPoolSelection = ({
     };
   });
 
+  const next = (sharedSelectionIndex + 1) % players.length;
+
+  // Apply state updates immediately
   setSharedPool(newPool);
   setPlayers(updatedPlayers);
 
-  const next = (sharedSelectionIndex + 1) % players.length;
-  
   setTimeout(() => {
+    const sharedSelectionState = {
+      phase: "shared_selection",
+      sharedPool: newPool,
+      players: updatedPlayers,
+      sharedSelectionIndex: next,
+    };
+
     if (next === lastDonatorIndex) {
-      console.log("I AM ABOUT TO BROADCAST FROM THE next === last DonatorIndex part of shared_selection")
-       broadcastState({
-    phase: "shared_selection", // or even "donation", both will sync
-    sharedSelectionIndex,
-    sharedPool: newPool,
-    players: updatedPlayers,
-  });
+      console.log("🚨 Final selector in shared phase, broadcasting & finishing");
+      broadcastState(sharedSelectionState);
       onFinish(); 
     } else {
-      // Single broadcast with next player's turn
-
-      console.log("I AM ABOUT TO BROADCAST FROM THE ELSE PART OF SHARED_SELECTION")
-      broadcastState({
-        phase: "shared_selection",
-        sharedSelectionIndex: next,
-        sharedPool: newPool,
-        players: updatedPlayers,
-      });
+      console.log("➡️ Broadcasting next turn in shared pool");
+      broadcastState(sharedSelectionState);
     }
-  }, 100);
+  }, 0);
 };
 
 

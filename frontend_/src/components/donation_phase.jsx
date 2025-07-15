@@ -22,6 +22,7 @@ const DonationPhase = ({
   const [kept, setKept] = useState(null);
   const [discarded, setDiscarded] = useState(null);
   const [shared, setShared] = useState([]);
+  const [donationDeck, setDonationDeck] = useState(deck);
 
   useEffect(() => {
   if (!isCurrentPlayer) return;
@@ -34,6 +35,7 @@ const DonationPhase = ({
   const drawn = deck.slice(-numToDraw);
   const newDeck = deck.slice(0, -numToDraw);
   setDeck(newDeck);
+  setDonationDeck(newDeck);
   setCardsToProcess(drawn);
   broadcastState({ deck: newDeck });
 }, []);
@@ -86,10 +88,13 @@ const DonationPhase = ({
     updatedPlayers,
   });
   // Single state update and broadcast
+
+  console.log("🧮 Broadcasting updated deck length:", donationDeck.length);
   broadcastState({
     discardPile: updatedDiscard,
     sharedPool: updatedShared,
     players: updatedPlayers,
+    deck: donationDeck,
     lastDonatorIndex: lastDonatorIdx,
     phase: "shared_selection",
     sharedSelectionIndex: (currentPlayerIndex + 1) % totalPlayers,

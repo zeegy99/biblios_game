@@ -21,7 +21,7 @@ export function buildDeck() {
   }
 
   // Add Gold cards
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     for (let k = 1; k <= 2; k++) {
       deck.push({
         value: k,
