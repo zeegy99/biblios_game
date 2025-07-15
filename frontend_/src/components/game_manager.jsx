@@ -72,7 +72,6 @@ const GameRunner = ({ playerName }) => {
     ...newPartialState        // ⬅️ overwrite any fields provided
   };
   console.log("📤 Broadcasting FULL game state:", fullState);
-  // console.log("🧺 Broadcast sharedPool:", fullState.sharedPool);
   socket.emit("sync_game_state", { room: "biblios", gameState: fullState });
 };
 
@@ -80,11 +79,10 @@ const GameRunner = ({ playerName }) => {
  useEffect(() => {
   console.log("📡 GameManager useEffect ran");
 
-  // const hasSynced = { current: false };
 
-  socket.on("sync_game_state", (...args) => {
-  console.log("👂 df actually received sync_game_state");
-});
+//   socket.on("sync_game_state", (...args) => {
+//   console.log("👂 df actually received sync_game_state");
+// });
   
   // Always attach this listener — it must run regardless of playerName
   const handleGameState = (gameState) => {
@@ -98,6 +96,8 @@ const GameRunner = ({ playerName }) => {
 
     setPhase(gameState.phase);
     setDeck(gameState.deck);
+    console.log("🃏 Deck received in GameRunner:", gameState.deck);
+    console.log("📦 Deck length:", gameState.deck.length);
     setDiscardPile(gameState.discardPile);
 
     setSharedPool([...gameState.sharedPool]);  // ✅ ensure clone to trigger re-render
@@ -157,10 +157,12 @@ const GameRunner = ({ playerName }) => {
       setCurrentPlayerIndex(0);
 
       setTimeout(() => {
+
+        const newDeck = buildDeck();
         const state = {
           phase: "donation",
-          deck,
-          discardPile,
+          deck: newDeck,
+          discardPile: [],
           sharedPool: Array.isArray(sharedPool) ? sharedPool : [],
           players: initializedPlayers,
           currentPlayerIndex: 0,
@@ -173,6 +175,7 @@ const GameRunner = ({ playerName }) => {
       }, 0);
 
       localStorage.removeItem("start_game_payload");
+      localStorage.removeItem("last_game_state");  // <-- ✅ add this
     }
 
     if (!hasSynced.current) {
@@ -184,7 +187,7 @@ const GameRunner = ({ playerName }) => {
     }
 
     socket.on("player_list", (list) => {
-      console.log("📡 player_list received:", list);
+      // console.log("📡 player_list received:", list);
       setPlayersOnline(list);
     });
   }
@@ -289,6 +292,7 @@ const GameRunner = ({ playerName }) => {
       console.log(`   - lastDonatorIndex: ${lastDonatorIndex}`);
       console.log(`   - deck length: ${deck.length}`);
       console.log(`   - players length: ${players.length}`);
+      console.log(`   - deck contents:`, deck);
 
       const nextPlayerIndex = (lastDonatorIndex + 1) % players.length;
       console.log(`   - nextPlayerIndex: ${nextPlayerIndex}`);

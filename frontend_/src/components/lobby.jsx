@@ -11,7 +11,7 @@ const Lobby = ({ playerName, setPlayerName }) => {
   socket.emit("join_game", { room, playerName });
 
   socket.on("player_list", (updatedPlayers) => {
-    console.log("📡 Received player list:", updatedPlayers);
+    // console.log("📡 Received player list:", updatedPlayers);
     setPlayers(updatedPlayers);
   });
 

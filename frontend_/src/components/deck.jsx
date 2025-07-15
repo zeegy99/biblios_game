@@ -1,14 +1,14 @@
 // src/utils/deck.js
 
 export function buildDeck() {
-  const card_q = { 1: 1, 2: 0, 3: 0, 4: 0 };
+  const card_q = { 1: 2, 2: 2, 3: 1, 4: 0 };
   const resourceTypes = ["Religion"]; //Leaving this out for now "Science", "Military", "Art", "Herbs"
   const tieBreakers = ["A", "B", "C", "D"];
   const deck = [];
 
   for (const res of resourceTypes) {
     for (const [val, quantity] of Object.entries(card_q)) {
-      for (let i = 0; i < 1; i++) {  // matching your "changed quantity to 1"
+      for (let i = 0; i < quantity; i++) {  // matching your "changed quantity to 1"
         const tie = tieBreakers[Math.floor(Math.random() * tieBreakers.length)];
         deck.push({
           value: parseInt(val),

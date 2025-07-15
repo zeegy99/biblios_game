@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Card from "./card";
 
 const DonationPhase = ({
@@ -17,8 +17,6 @@ const DonationPhase = ({
   totalPlayers,
   currentPlayerIndex,
 }) => {
-  console.log("🃏 DonationPhase props:", { player, deck });
-  console.log("totalPlayers", {totalPlayers})
   const numToDraw = 2 + (totalPlayers - 1);
   const [cardsToProcess, setCardsToProcess] = useState([]);
   const [kept, setKept] = useState(null);
@@ -26,10 +24,20 @@ const DonationPhase = ({
   const [shared, setShared] = useState([]);
 
   useEffect(() => {
-    const drawn = deck.slice(-numToDraw);
-    setDeck(deck.slice(0, -numToDraw));
-    setCardsToProcess(drawn);
-  }, []);
+  if (!isCurrentPlayer) return;
+  if (deck.length < numToDraw) {
+    console.warn("Not enough cards — skipping to auction");
+    broadcastState({ phase: "auction" });
+    return;
+  }
+
+  const drawn = deck.slice(-numToDraw);
+  const newDeck = deck.slice(0, -numToDraw);
+  setDeck(newDeck);
+  setCardsToProcess(drawn);
+  broadcastState({ deck: newDeck });
+}, []);
+
 
   const handleChoice = (card, action) => {
     if (action === "keep") {

@@ -23,8 +23,8 @@ const SharedPoolSelection = ({
   }
 
   
-  console.log("🧑‍🤝‍🧑 Players from df's POV:", players);
-  console.log("🃏 Hands from df:", players.map(p => ({ name: p.name, hand: p.hand })));
+  // console.log("🧑‍🤝‍🧑 Players from df's POV:", players);
+  // console.log("🃏 Hands from df:", players.map(p => ({ name: p.name, hand: p.hand })));
 
   
   const player = players[sharedSelectionIndex];
