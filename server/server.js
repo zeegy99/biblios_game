@@ -40,6 +40,7 @@ io.on("connection", (socket) => {
 
 
   socket.on("sync_game_state", ({ room, gameState }) => {
+    console.log("💥 Received sync_game_state with activeBidders:", gameState.activeBidders);
   console.log(`🔁 Sync game state to room ${room} from sevrer.js has run`);
   io.to(room).emit("sync_game_state", gameState);
 });

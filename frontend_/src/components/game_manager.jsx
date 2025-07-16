@@ -89,24 +89,23 @@ useEffect(() => {
   console.log("📡 GameManager useEffect ran");
 
 
-//   socket.on("sync_game_state", (...args) => {
-//   console.log("👂 df actually received sync_game_state");
-// });
   
   // Always attach this listener — it must run regardless of playerName
   const handleGameState = (gameState) => {
-    if (hasSynced.current) {
-      // console.log("🛑 Skipping fallback — already synced once.");
-    }
-    hasSynced.current = true;
+   if (!hasSynced.current) {
+  hasSynced.current = true;
+  console.log("✅ First sync");
+} else {
+  console.log("🔁 Re-syncing from broadcast");
+}
     // console.log("This is the gamestate", gameState)
     // console.log("💥 From player:", playerName);
     localStorage.setItem("last_game_state", JSON.stringify(gameState)); 
 
     setPhase(gameState.phase);
     setDeck(gameState.deck);
-    console.log("🃏 Deck received in GameRunner:", gameState.deck);
-    console.log("📦 Deck length:", gameState.deck.length, playerName);
+    // console.log("🃏 Deck received in GameRunner:", gameState.deck);
+    // console.log("📦 Deck length:", gameState.deck.length, playerName);
     setDiscardPile(gameState.discardPile);
 
     setSharedPool([...gameState.sharedPool]);  // ✅ ensure clone to trigger re-render
@@ -264,15 +263,15 @@ useEffect(() => {
           currentPlayerIndex={currentPlayerIndex}
           totalPlayers={players.length}
           onFinish={({ updatedDiscard, updatedShared, updatedPlayers }) => {
-            console.log("Everything from DonationPhase");
-            console.log("🗑️ Discard Pile:", updatedDiscard);
-            console.log("🫱 Shared Pool:", updatedShared);
-            console.log("🧑‍🤝‍🧑 Players:", updatedPlayers);
-            console.log("🃏 Player Hands:", updatedPlayers.map(p => ({
-              name: p.name,
-              hand: p.hand,
-              gold: p.gold
-            })));  
+            // console.log("Everything from DonationPhase");
+            // console.log("🗑️ Discard Pile:", updatedDiscard);
+            // console.log("🫱 Shared Pool:", updatedShared);
+            // console.log("🧑‍🤝‍🧑 Players:", updatedPlayers);
+            // console.log("🃏 Player Hands:", updatedPlayers.map(p => ({
+            //   name: p.name,
+            //   hand: p.hand,
+            //   gold: p.gold
+            // })));  
         }}
 
 
@@ -375,6 +374,8 @@ useEffect(() => {
           setAuctionTurnOffset={setAuctionTurnOffset}
         />
       )}
+
+      
 
       {phase === "scoring" && dice && (
         <ScoringPhase

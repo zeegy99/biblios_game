@@ -35,13 +35,15 @@ const AuctionPhase = ({
   goldCard,
   setGoldCard
 }) => {
- 
-  console.log("🧠 AuctionPhase mounted");
-  console.log("📋 Initial activeBidders:", activeBidders);
+  useEffect(() => {
+    console.log("🧠 AuctionPhase mounted");
+    console.log("📋 Initial activeBidders:", activeBidders);
 
-  console.log("🧾 Discard pile at mount:", discardPile);
-  console.log("🧾 Current card index:", currentCardIndex);
-  console.log("🧾 Card at index:", discardPile[currentCardIndex]);
+    console.log("🧾 Discard pile at mount:", discardPile);
+    console.log("🧾 Current card index:", currentCardIndex);
+    console.log("🧾 Card at index:", discardPile[currentCardIndex]);
+  }, [])
+  
 
 
   useEffect(() => {
@@ -53,15 +55,35 @@ const AuctionPhase = ({
   }, [players, activeBidders, setActiveBidders]);
 
   useEffect(() => {
-  console.log("🔄 Sync check from UseEffect2:");
-  console.log("  👤 playerName:", playerName);
-  console.log("Discard Pile", discardPile)
-  console.log("  📦 currentCardIndex:", currentCardIndex);
-  console.log("  🧠 activePlayerIndex:", activePlayerIndex);
-  console.log("  🙋‍♂️ activeBidders:", activeBidders);
-  console.log("  💰 currentBid:", currentBid);
-  console.log("  🏆 highestBidder:", highestBidder);
-  console.log("  🧑‍🤝‍🧑 players:", players.map(p => ({ name: p.name, gold: p.gold, handLen: p.hand.length })));
+  if (discardPile[currentCardIndex]) {
+    const allTrue = players.map(() => true);
+    setActiveBidders(allTrue);
+    setActivePlayerIndex(0); // optional: reset turn order
+    setCurrentBid(0);
+    setHighestBidder(null);
+
+    console.log("🔁 New auction round started — resetting activeBidders:", allTrue);
+    console.log("Active bidders:", activeBidders)
+
+    broadcastState({
+      activeBidders: allTrue,
+      activePlayerIndex: 0,
+      currentBid: 0,
+      highestBidder: null,
+    });
+  }
+}, [currentCardIndex]);
+
+  useEffect(() => {
+  // console.log("🔄 Sync check from UseEffect2:");
+  // console.log("  👤 playerName:", playerName);
+  // console.log("Discard Pile", discardPile)
+  // console.log("  📦 currentCardIndex:", currentCardIndex);
+  // console.log("  🧠 activePlayerIndex:", activePlayerIndex);
+  // console.log("  🙋‍♂️ activeBidders:", activeBidders);
+  // console.log("  💰 currentBid:", currentBid);
+  // console.log("  🏆 highestBidder:", highestBidder);
+  // console.log("  🧑‍🤝‍🧑 players:", players.map(p => ({ name: p.name, gold: p.gold, handLen: p.hand.length })));
 }, [
   currentCardIndex,
   activePlayerIndex,
@@ -87,11 +109,11 @@ const AuctionPhase = ({
   const isGold = currentCard?.type === "Gold";
   const player = biddingOrder[activePlayerIndex];
 
-  console.log("📦 playerName:", playerName);
-console.log("📦 auctionTurnOffset:", auctionTurnOffset);
-console.log("📦 activePlayerIndex:", activePlayerIndex);
-console.log("📦 biddingOrder:", biddingOrder.map(p => p.name));
-console.log("📦 Current player expected to bid:", biddingOrder[activePlayerIndex].name);
+//   console.log("📦 playerName:", playerName);
+// console.log("📦 auctionTurnOffset:", auctionTurnOffset);
+// console.log("📦 activePlayerIndex:", activePlayerIndex);
+// console.log("📦 biddingOrder:", biddingOrder.map(p => p.name));
+// console.log("📦 Current player expected to bid:", biddingOrder[activePlayerIndex].name);
 
   const getNextActivePlayerIndex = () => {
   let next = (activePlayerIndex + 1) % players.length;
@@ -135,7 +157,7 @@ broadcastState({
     if (stillIn === 1) {
       finishAuction(updated, activePlayerIndex);
     } else {
-      nextPlayer();
+      // nextPlayer();
     }
   };
 
@@ -160,17 +182,17 @@ broadcastState({
     } else if (stillIn === 1 && hasBid) {
       finishAuction(updated, highestBidder);
     } else {
-      nextPlayer();
+      // nextPlayer();
     }
   };
 
   const finishAuction = (finalBidders, winnerIndex) => {
   if (winnerIndex == null) {
     alert("No one bid — card discarded.");
-
+    console.log("debugging evryone passing");
     broadcastState({
       discardPile: discardPile.slice(1), // remove the top card
-      currentCardIndex: currentCardIndex + 1,
+      currentCardIndex: 0,
       highestBidder: null,
       currentBid: 0,
       activeBidders: players.map(() => true),
@@ -233,6 +255,9 @@ if (updatedDiscardPile.length > 0) {
   setHighestBidder(null);
   setActiveBidders(players.map(() => true));
   setAuctionTurnOffset((prev) => (prev + 1) % players.length);
+  const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
+  const newAuctionStarter = players[newAuctionStarterIndex]?.name;
+  console.log("🎯 Next auction round will start with:", newAuctionStarter, playerName);
   setActivePlayerIndex(0);
   setCurrentBid(0);
 
@@ -313,10 +338,14 @@ if (updatedDiscardPile.length > 0) {
   setHighestBidder(null);
   setActiveBidders(players.map(() => true));
   setAuctionTurnOffset((prev) => (prev + 1) % players.length);
+  const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
+  const newAuctionStarter = players[newAuctionStarterIndex]?.name;
+  console.log("🎯 Next auction round will start with I am in gold payment:", newAuctionStarter);
   setActivePlayerIndex(0);
 
   console.log("🔄 I am right before broadcaststate in confirmGoldPayment, Incremented auctionTurnOffset to:", (auctionTurnOffset + 1) % players.length);
 
+  console.log("📤 About to broadcast auctionTurnOffset =", (auctionTurnOffset + 1) % players.length);
   broadcastState({
     players: updatedPlayers,
     awaitingGoldPayment: false,
@@ -380,6 +409,7 @@ if (updatedDiscardPile.length > 0) {
     };
 
     const confirmCardPayment = () => {
+      console.log("I AM IN CONFIRMCADPAYMENT HELLO")
       if (selectedPaymentCards.length !== currentBid) {
         alert(`You must select exactly ${currentBid} cards.`);
         return;
@@ -402,7 +432,15 @@ if (updatedDiscardPile.length > 0) {
       setDiscardPile(updatedDiscardPile);
       console.log("ConfirmCardPayment updating the discard pile", updatedDiscardPile)
 
+      const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
+    const newAuctionStarter = players[newAuctionStarterIndex]?.name;
+  console.log("🎯 Next auction round will start with:", newAuctionStarter);
 
+  setAuctionTurnOffset(newAuctionStarterIndex);
+  setActivePlayerIndex(0); // always biddingOrder[0]
+  setHighestBidder(null);
+  setActiveBidders(players.map(() => true));
+  setCurrentCardIndex(0);
       
       setPlayers(updatedPlayers);
       setAwaitingCardPayment(false);
@@ -411,12 +449,17 @@ if (updatedDiscardPile.length > 0) {
       
 
       broadcastState({
-      players: updatedPlayers,
-      awaitingCardPayment: false,
-      selectedPaymentCards: [],
-      currentBid: 0,
-      discardPile: updatedDiscardPile,
-  });
+  players: updatedPlayers,
+  awaitingCardPayment: false,
+  selectedPaymentCards: [],
+  currentBid: 0,
+  discardPile: updatedDiscardPile,
+  auctionTurnOffset: newAuctionStarterIndex,
+  activePlayerIndex: 0,
+  activeBidders: players.map(() => true),
+  highestBidder: null,
+  currentCardIndex: 0,
+});
     };
 
     return (

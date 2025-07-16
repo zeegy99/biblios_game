@@ -58,8 +58,8 @@ const DonationPhase = ({
   };
 
   const confirmTurn = () => {
-    console.log("🟩 ConfirmTurn triggered");
-  console.log("Kept:", kept, "Discarded:", discarded, "Shared:", shared);
+    // console.log("🟩 ConfirmTurn triggered");
+  // console.log("Kept:", kept, "Discarded:", discarded, "Shared:", shared);
   if (!kept || !discarded || shared.length !== numToDraw - 2) {
     alert("You must assign all cards.");
     return;
