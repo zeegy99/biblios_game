@@ -24,21 +24,96 @@ const DonationPhase = ({
   const [shared, setShared] = useState([]);
   const [donationDeck, setDonationDeck] = useState(deck);
 
-  useEffect(() => {
-  if (!isCurrentPlayer) return;
-  if (deck.length < numToDraw) {
-    console.warn("Not enough cards — skipping to auction");
-    broadcastState({ phase: "auction" });
-    return;
+  const playSpecialCard = (card) => {
+  console.log(`${player.name} is playing special dice modifier:`, card);
+
+  // Step 1: Resolve "Both" to Plus or Minus
+  if (card.type === "Both") {
+    const choice = prompt("Increase or decrease dice? (i/d)").toLowerCase();
+    if (choice === "i") card.type = "Plus";
+    else if (choice === "d") card.type = "Minus";
+    else {
+      alert("Invalid input.");
+      return;
+    }
   }
 
-  const drawn = deck.slice(-numToDraw);
-  const newDeck = deck.slice(0, -numToDraw);
-  setDeck(newDeck);
-  setDonationDeck(newDeck);
-  setCardsToProcess(drawn);
-  broadcastState({ deck: newDeck });
-}, []);
+  // Step 2: Clone dice from localStorage (or props/state)
+  const prevState = JSON.parse(localStorage.getItem("last_game_state"));
+  const updatedDice = prevState?.dice ? [...prevState.dice.map(d => ({ ...d }))] : [];
+
+  if (card.value === 2) {
+    const chosen = new Set();
+    while (chosen.size < 2) {
+      const idx = parseInt(prompt(`${player.name}, choose die #${chosen.size + 1} to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`), 10);
+
+      if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
+        alert("Invalid index. Must be 0–4.");
+        continue;
+      }
+
+      if (chosen.has(idx)) {
+        alert("You've already picked that die.");
+        continue;
+      }
+
+      chosen.add(idx);
+      const die = updatedDice[idx];
+      die.value = card.type === "Plus"
+        ? Math.min(6, die.value + 1)
+        : Math.max(1, die.value - 1);
+
+      console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
+    }
+  } else {
+    const idx = parseInt(prompt(`${player.name}, choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`), 10);
+    if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
+      alert("Invalid die index.");
+      return;
+    }
+
+    const die = updatedDice[idx];
+    die.value = card.type === "Plus"
+      ? Math.min(6, die.value + card.value)
+      : Math.max(1, die.value - card.value);
+
+    console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
+  }
+
+  // ✅ Broadcast the updated dice to everyone
+  broadcastState({ dice: updatedDice });
+};
+
+
+  useEffect(() => {
+    if (!isCurrentPlayer) return;
+
+    const updatedDeck = [...deck];
+    const drawn = [];
+
+    while (drawn.length < numToDraw && updatedDeck.length > 0) {
+      const card = updatedDeck.pop();
+      if (card.isSpecial) {
+        console.log("💫 Special card drawn:", card);
+        setTimeout(() => {
+          playSpecialCard(card);
+        }, 250); // or 300ms if needed
+      } else {
+        drawn.push(card);
+      }
+    }
+
+    if (drawn.length < numToDraw) {
+      console.warn("Not enough non-special cards — skipping to auction");
+      broadcastState({ phase: "auction" });
+      return;
+    }
+
+    setDeck(updatedDeck);
+    setDonationDeck(updatedDeck);
+    setCardsToProcess(drawn.reverse()); // optional: maintain draw order
+    broadcastState({ deck: updatedDeck });
+  }, []);
 
 
   const handleChoice = (card, action) => {

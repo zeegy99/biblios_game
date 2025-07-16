@@ -30,11 +30,32 @@ export function buildDeck() {
         isSpecial: false,
       });
     }
+     
   }
 
-  // Optional: add special cards (commented in your Python version)
-  // deck.push({ value: 1, type: "Plus", isSpecial: true });
-  // deck.push({ value: 1, type: "Minus", isSpecial: true });
+  for (let i = 0; i < 1; i++) {
+     deck.push({
+      value: 2,
+      type: "Plus", // or "Minus" or "Both"
+      isSpecial: true
+    });
+  }
+  for (let i = 0; i < 1; i++) {
+     deck.push({
+      value: 2,
+      type: "Minus", // or "Minus" or "Both"
+      isSpecial: true
+    });
+  }
+  for (let i = 0; i < 1; i++) {
+     deck.push({
+      value: 2,
+      type: "Both", // or "Minus" or "Both"
+      isSpecial: true
+    });
+  }
+
+ 
 
   // Shuffle
   for (let i = deck.length - 1; i > 0; i--) {

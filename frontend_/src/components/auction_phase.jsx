@@ -449,6 +449,12 @@ const AuctionPhase = ({
       );
       updatedPlayers[goldWinner.index].hand = filtered;
 
+      //Removing gold if they got rid of gold. 
+      const discardedGold = selectedPaymentCards
+      .filter((c) => c.type === "Gold")
+      .reduce((sum, c) => sum + c.value, 0);
+      updatedPlayers[goldWinner.index].gold -= discardedGold;
+
 
       //Removing Card from the Auction_Pool 
       const updatedDiscardPile = [...discardPile];
@@ -500,6 +506,8 @@ const AuctionPhase = ({
                   : "1px solid gray",
                 margin: "5px",
                 cursor: "pointer",
+                opacity: idx === goldWinner.player.hand.length - 1 ? 0.5 : 1, // dim the new card
+                pointerEvents: idx === goldWinner.player.hand.length - 1 ? "none" : "auto", // block clicks
               }}
             >
               <Card {...card} />
