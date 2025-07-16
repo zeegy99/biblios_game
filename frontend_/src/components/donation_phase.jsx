@@ -29,7 +29,7 @@ const DonationPhase = ({
 
   // Step 1: Resolve "Both" to Plus or Minus
   if (card.type === "Both") {
-    const choice = prompt("Increase or decrease dice? (i/d)").toLowerCase();
+    const choice = prompt("You drew a Both card! Increase or decrease dice? (i/d)").toLowerCase();
     if (choice === "i") card.type = "Plus";
     else if (choice === "d") card.type = "Minus";
     else {
@@ -45,7 +45,9 @@ const DonationPhase = ({
   if (card.value === 2) {
     const chosen = new Set();
     while (chosen.size < 2) {
-      const idx = parseInt(prompt(`${player.name}, choose die #${chosen.size + 1} to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`), 10);
+      const modifierSymbol = card.type === "Plus" ? "+" : "-";
+      const promptMessage = `${player.name}, you drew a ${modifierSymbol}${card.value} dice modifier card! Choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`;
+      const idx = parseInt(prompt(promptMessage), 10);
 
       if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
         alert("Invalid index. Must be 0–4.");
@@ -66,7 +68,9 @@ const DonationPhase = ({
       console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
     }
   } else {
-    const idx = parseInt(prompt(`${player.name}, choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`), 10);
+    const modifierSymbol = card.type === "Plus" ? "+" : "-";
+    const promptMessage = `${player.name}, you drew a ${modifierSymbol}${card.value} dice modifier card! Choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`;
+    const idx = parseInt(prompt(promptMessage), 10);
     if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
       alert("Invalid die index.");
       return;

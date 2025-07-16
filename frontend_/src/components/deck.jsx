@@ -2,7 +2,7 @@
 
 export function buildDeck() {
   const card_q = { 1: 2, 2: 2, 3: 1, 4: 0 };
-  const resourceTypes = ["Religion"]; //Leaving this out for now "Science", "Military", "Art", "Herbs"
+  const resourceTypes = ["Religion", "Science", "Military", "Art", "Herbs"]; //Leaving this out for now 
   const tieBreakers = ["A", "B", "C", "D"];
   const deck = [];
 
@@ -21,7 +21,7 @@ export function buildDeck() {
   }
 
   // Add Gold cards
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
     for (let k = 1; k <= 2; k++) {
       deck.push({
         value: k,
