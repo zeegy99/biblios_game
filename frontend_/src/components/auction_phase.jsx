@@ -297,7 +297,15 @@ const AuctionPhase = ({
 };
 
 
-  if (!currentCard) return <p>No cards to auction.</p>;
+  if (!currentCard) {
+    console.log("🎯 No more cards — transitioning to scoring phase.");
+    setPhase("scoring");
+    broadcastState({
+      discardPile: [],
+      phase: "scoring",
+    });
+    return <p>No cards to auction.</p>;
+  }
 
   // 🔶 Non-gold card won → pay with gold cards
   if (awaitingGoldPayment && goldPaymentWinner) {
