@@ -33,27 +33,27 @@ export function buildDeck() {
      
   }
 
-  for (let i = 0; i < 1; i++) {
-     deck.push({
-      value: 2,
-      type: "Plus", // or "Minus" or "Both"
-      isSpecial: true
-    });
-  }
-  for (let i = 0; i < 1; i++) {
-     deck.push({
-      value: 2,
-      type: "Minus", // or "Minus" or "Both"
-      isSpecial: true
-    });
-  }
-  for (let i = 0; i < 1; i++) {
-     deck.push({
-      value: 2,
-      type: "Both", // or "Minus" or "Both"
-      isSpecial: true
-    });
-  }
+  // for (let i = 0; i < 1; i++) {
+  //    deck.push({
+  //     value: 2,
+  //     type: "Plus", // or "Minus" or "Both"
+  //     isSpecial: true
+  //   });
+  // }
+  // for (let i = 0; i < 1; i++) {
+  //    deck.push({
+  //     value: 2,
+  //     type: "Minus", // or "Minus" or "Both"
+  //     isSpecial: true
+  //   });
+  // }
+  // for (let i = 0; i < 1; i++) {
+  //    deck.push({
+  //     value: 2,
+  //     type: "Both", // or "Minus" or "Both"
+  //     isSpecial: true
+  //   });
+  // }
 
  
 
