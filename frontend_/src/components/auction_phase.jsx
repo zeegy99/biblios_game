@@ -33,7 +33,9 @@ const AuctionPhase = ({
   goldWinner,
   setGoldWinner,
   goldCard,
-  setGoldCard
+  setGoldCard,
+  auctionTurnOffset, // ✅ <-- MAKE SURE THIS IS HERE
+  setAuctionTurnOffset
 }) => {
   useEffect(() => {
     console.log("🧠 AuctionPhase mounted");
@@ -64,6 +66,7 @@ const AuctionPhase = ({
 
     console.log("🔁 New auction round started — resetting activeBidders:", allTrue);
     console.log("Active bidders:", activeBidders)
+    console.log("📥 auctionTurnOffset received:", auctionTurnOffset);
 
     broadcastState({
       activeBidders: allTrue,
@@ -97,23 +100,17 @@ const AuctionPhase = ({
   console.log("New activeBidders", activeBidders)
   
 
-  const [auctionTurnOffset, setAuctionTurnOffset] = useState(
-    (lastDonatorIndex + 1) % players.length
-  );
-
   const biddingOrder = useMemo(() => {
-    return players.map((_, i) => players[(auctionTurnOffset + i) % players.length]);
+    const order = players.map((_, i) => players[(auctionTurnOffset + i) % players.length]);
+    console.log("🧭 Bidding order now:", order.map(p => p.name));
+    return order;
   }, [players, auctionTurnOffset]);
+  console.log("🎯 Current bidder should be:", biddingOrder[activePlayerIndex]?.name);
 
   const currentCard = discardPile[currentCardIndex];
   const isGold = currentCard?.type === "Gold";
   const player = biddingOrder[activePlayerIndex];
 
-//   console.log("📦 playerName:", playerName);
-// console.log("📦 auctionTurnOffset:", auctionTurnOffset);
-// console.log("📦 activePlayerIndex:", activePlayerIndex);
-// console.log("📦 biddingOrder:", biddingOrder.map(p => p.name));
-// console.log("📦 Current player expected to bid:", biddingOrder[activePlayerIndex].name);
 
   const getNextActivePlayerIndex = () => {
   let next = (activePlayerIndex + 1) % players.length;
@@ -162,122 +159,149 @@ broadcastState({
   };
 
   const handlePass = () => {
+    console.log("🚫 Player passed:", players[activePlayerIndex]?.name);
     const updated = [...activeBidders];
     updated[activePlayerIndex] = false;
     setActiveBidders(updated);
+    console.log("🔄 Updated activeBidders after pass:", updated);
+
+
     const next = getNextActivePlayerIndex();
-setActivePlayerIndex(next);
+    console.log("➡️ Next active player index:", next, players[next]?.name);
+    setActivePlayerIndex(next);
 
-broadcastState({
-  activeBidders: updated,
-  activePlayerIndex: next,
-});
-
+    broadcastState({
+      activeBidders: updated,
+      activePlayerIndex: next,
+    });
 
     const stillIn = updated.filter(Boolean).length;
     const hasBid = highestBidder !== null;
+    console.log("🧮 Players still in:", stillIn, "| Has anyone bid?", hasBid);
 
     if (stillIn === 0) {
+      console.log("🟠 All players passed");
       finishAuction(updated, hasBid ? highestBidder : null);
     } else if (stillIn === 1 && hasBid) {
+      console.log("🟢 One player left — winner:", players[highestBidder]?.name);
       finishAuction(updated, highestBidder);
     } else {
-      // nextPlayer();
+      console.log("🕓 Moving to next bidder...");
     }
   };
 
   const finishAuction = (finalBidders, winnerIndex) => {
-  if (winnerIndex == null) {
-    alert("No one bid — card discarded.");
-    console.log("debugging evryone passing");
-    broadcastState({
-      discardPile: discardPile.slice(1), // remove the top card
-      currentCardIndex: 0,
-      highestBidder: null,
-      currentBid: 0,
-      activeBidders: players.map(() => true),
-      activePlayerIndex: 0,
-    });
-  } else {
-    const updatedPlayers = [...players];
-    const winnerName = biddingOrder[winnerIndex].name;
-    const winnerIdx = players.findIndex((p) => p.name === winnerName);
-    const winner = updatedPlayers[winnerIdx];
+    console.log("🔔 finishAuction called. Winner index:", winnerIndex);
 
-    winner.hand.push(currentCard);
+    const updatedDiscardPile = [...discardPile];
+    updatedDiscardPile.splice(currentCardIndex, 1);
+    setDiscardPile(updatedDiscardPile);
+    console.log("🗑️ Discard pile after removal:", updatedDiscardPile);
 
-    if (isGold) {
-      winner.gold += currentCard.value;
+    if (winnerIndex == null) {
+      alert("No one bid — card discarded.");
+      console.log("⚠️ Everyone passed — no winner.");
 
-      setAwaitingCardPayment(true);
-      setGoldWinner({ player: winner, index: winnerIdx });
-      setGoldCard(currentCard);
+      if (updatedDiscardPile.length > 0) {
+      const newOffset = (auctionTurnOffset + 1) % players.length;
+      const newAuctionStarter = players[newOffset]?.name;
+      console.log("🎯 Next auction round will start with:", newAuctionStarter, playerName);
 
-      setPlayers(updatedPlayers);
+      setCurrentCardIndex(0);
+      setHighestBidder(null);
+      setActiveBidders(players.map(() => true));
+      setAuctionTurnOffset(newOffset);
+      setActivePlayerIndex(0);
+      setCurrentBid(0);
+
       broadcastState({
-        players: updatedPlayers,
-        awaitingCardPayment: true,
-        goldWinner: { player: winner, index: winnerIdx },
-        goldCard: currentCard,
-      });
-
-      return;
-
+        discardPile: updatedDiscardPile,
+        currentCardIndex: 0,
+        highestBidder: null,
+        activeBidders: players.map(() => true),
+        activePlayerIndex: 0,
+        currentBid: 0,
+        auctionTurnOffset: newOffset,
+        });
+      }
     } else {
-      // Add the won card (non-gold) to the winner's hand 
-      setAwaitingGoldPayment(true);
-      setGoldPaymentWinner({ player: winner, index: winnerIdx, card: currentCard });
+      const updatedPlayers = [...players];
+      const winnerName = biddingOrder[winnerIndex].name;
+      const winnerIdx = players.findIndex((p) => p.name === winnerName);
+      const winner = updatedPlayers[winnerIdx];
+      console.log("🏆 Winner found:", winner.name);
 
-      setPlayers(updatedPlayers);
-      broadcastState({
-        players: updatedPlayers,
-        awaitingGoldPayment: true,
-        goldPaymentWinner: {
-          player: winner,
-          index: winnerIdx,
-          card: currentCard,
-        },
-      });
-      return; // Wait until payment is confirmed
+      winner.hand.push(currentCard);
+
+      if (isGold) {
+        winner.gold += currentCard.value;
+        setAwaitingCardPayment(true);
+        setGoldWinner({ player: winner, index: winnerIdx });
+        setGoldCard(currentCard);
+        setPlayers(updatedPlayers);
+
+        console.log("💰 Gold card won by:", winner.name);
+
+        broadcastState({
+          players: updatedPlayers,
+          awaitingCardPayment: true,
+          goldWinner: { player: winner, index: winnerIdx },
+          goldCard: currentCard,
+        });
+
+        return;
+      } else {
+        setAwaitingGoldPayment(true);
+        setGoldPaymentWinner({ player: winner, index: winnerIdx, card: currentCard });
+        setPlayers(updatedPlayers);
+
+        console.log("📦 Non-gold card won — awaiting gold payment from:", winner.name);
+
+        broadcastState({
+          players: updatedPlayers,
+          awaitingGoldPayment: true,
+          goldPaymentWinner: {
+            player: winner,
+            index: winnerIdx,
+            card: currentCard,
+          },
+        });
+
+        return;
+      }
     }
 
+  if (updatedDiscardPile.length > 0) {
 
+    const newOffset = (auctionTurnOffset + 1) % players.length;
+    const newAuctionStarter = players[newOffset]?.name;
+
+    console.log("🆕 Starting next auction round — new offset:", newOffset, "=>", newAuctionStarter);
+
+    setCurrentCardIndex(0);
+    setHighestBidder(null);
+    setActiveBidders(players.map(() => true)); 
+    setAuctionTurnOffset(newOffset);
+    setActivePlayerIndex(0);
+    setCurrentBid(0);
+
+    broadcastState({
+      discardPile: updatedDiscardPile,
+      currentCardIndex: 0,
+      highestBidder: null,
+      activeBidders: players.map(() => true),
+      activePlayerIndex: 0,
+      currentBid: 0,
+      auctionTurnOffset: newOffset,
+    });
+  } else {
+    console.log("🎯 No more cards — transitioning to scoring phase.");
+    setPhase("scoring");
+    broadcastState({
+      discardPile: [],
+      phase: "scoring",
+    });
   }
-
-  // Advance to next card
-  // Remove the current card from discardPile
-const updatedDiscardPile = [...discardPile];
-updatedDiscardPile.splice(currentCardIndex, 1);
-setDiscardPile(updatedDiscardPile);
-
-if (updatedDiscardPile.length > 0) {
-  setCurrentCardIndex(0); // always auction the top card (index 0)
-  setHighestBidder(null);
-  setActiveBidders(players.map(() => true));
-  setAuctionTurnOffset((prev) => (prev + 1) % players.length);
-  const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
-  const newAuctionStarter = players[newAuctionStarterIndex]?.name;
-  console.log("🎯 Next auction round will start with:", newAuctionStarter, playerName);
-  setActivePlayerIndex(0);
-  setCurrentBid(0);
-
-  broadcastState({
-    discardPile: updatedDiscardPile,
-    currentCardIndex: 0,
-    highestBidder: null,
-    activeBidders: players.map(() => true),
-    activePlayerIndex: 0,
-    currentBid: 0,
-    auctionTurnOffset: (auctionTurnOffset + 1) % players.length,
-  });
-} else {
-  setPhase("scoring");
-  broadcastState({
-    discardPile: [],
-    phase: "scoring",
-  });
-}
-
 };
 
 

@@ -86,6 +86,10 @@ useEffect(() => {
 }, [phase]);
 
 useEffect(() => {
+  console.log("🎯 auctionTurnOffset updated to:", auctionTurnOffset);
+}, [auctionTurnOffset]);
+
+useEffect(() => {
   console.log("📡 GameManager useEffect ran");
 
 
