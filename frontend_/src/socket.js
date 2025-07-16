@@ -1,3 +1,5 @@
+import { io } from "socket.io-client";
+
 console.log("Attempting to connect to socket...");
 const socket = io("https://biblios-game.onrender.com", {
   transports: ["websocket"],
