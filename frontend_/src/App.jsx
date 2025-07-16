@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./components/home.jsx";
 import Lobby from "./components/lobby.jsx";
 import Play from "./components/play_component.jsx";
+import socket from "./socket";
 
 function App() {
   const [playerName, setPlayerName] = useState(() => {
