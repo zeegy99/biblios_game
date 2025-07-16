@@ -1,10 +1,16 @@
-const { Server } = require("socket.io");
+
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+const path = require("path");
+
+const { Server } = require("socket.io");
 
 const app = express();
 app.use(cors());
+
+const frontendPath = path.join(__dirname, "../frontend_/dist");
+app.use(express.static(frontendPath));
 
 app.get("/", (req, res) => {
   res.send("Server is running");
