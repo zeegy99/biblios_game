@@ -173,6 +173,10 @@ useEffect(() => {
       setTimeout(() => {
 
         const newDeck = buildDeck();
+
+        const rolledDice = rollDice();
+        setDice(rolledDice); 
+        console.log("Dice rolled", rolledDice)
         const state = {
           phase: "donation",
           deck: newDeck,
@@ -181,9 +185,9 @@ useEffect(() => {
           players: initializedPlayers,
           currentPlayerIndex: 0,
           lastDonatorIndex: null,
-          dice: null,
+          dice: rolledDice,
           finalPhaseDone: false,
-          auctionTurnOffset: 0,  // ✅ Add this line
+          auctionTurnOffset: 0,  
         };
         console.log("👑 Host broadcasting initial game state:", state);
         socket.emit("sync_game_state", { room: "biblios", gameState: state });
@@ -249,6 +253,24 @@ useEffect(() => {
       </div>
 
       <p style={{ textAlign: "center" }}>Current Phase: {phase}</p>
+      {dice && (
+  <div style={{ textAlign: "center", marginBottom: "20px" }}>
+    <h3>🎲 Dice Values</h3>
+    <ul style={{ display: "flex", justifyContent: "center", listStyle: "none", padding: 0, gap: "12px" }}>
+      {dice.map((die, idx) => (
+        <li key={idx} style={{
+          padding: "8px 12px",
+          border: "1px solid #ccc",
+          borderRadius: "8px",
+          backgroundColor: "#f9f9f9",
+          minWidth: "80px"
+        }}>
+          <strong>{die.resource_type}</strong>: {die.value}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
 
       {phase === "donation" && (
         
@@ -385,11 +407,17 @@ useEffect(() => {
         <ScoringPhase
           players={players}
           dice={dice}
+          isHost={players[0]?.name === playerName} // ✅ this line was missing before
           setFinalResults={(scoredPlayers) => {
             setPlayers(scoredPlayers);
             setFinalPhaseDone(true);
             broadcastState();
           }}
+
+          goToResults={() => {
+          setPhase("results");
+      broadcastState({ phase: "results" });
+    }}
         />
       )}
 
@@ -415,13 +443,13 @@ useEffect(() => {
       <div style={{ marginTop: "30px" }}>
         <h3>Game State</h3>
 
-        <h4>{currentPlayer.name}'s Hand</h4>
+        <h4>{playerName}'s Hand</h4>
         <ul>
-          {currentPlayer.hand.map((card, index) => (
+          {players.find(p => p.name === playerName)?.hand.map((card, index) => (
             <li key={index}>
               {card.type} {card.value}
             </li>
-          ))}
+          )) ?? <li>(No cards)</li>}
         </ul>
 
         <h4>Discard Pile</h4>
