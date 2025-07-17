@@ -179,13 +179,17 @@ const AuctionPhase = ({
     console.log("🔔 finishAuction called. Winner index:", winnerIndex);
 
     const updatedDiscardPile = [...discardPile];
-    updatedDiscardPile.splice(currentCardIndex, 1);
     setDiscardPile(updatedDiscardPile);
+
     console.log("🗑️ Discard pile after removal:", updatedDiscardPile);
 
     if (winnerIndex == null) {
       alert("No one bid — card discarded.");
       console.log("⚠️ Everyone passed — no winner.");
+
+      const updatedDiscardPile = [...discardPile];
+      updatedDiscardPile.splice(currentCardIndex, 1); // ✅ REMOVE the card
+      setDiscardPile(updatedDiscardPile);
 
       if (updatedDiscardPile.length > 0) {
         const newOffset = (auctionTurnOffset + 1) % players.length;
@@ -219,11 +223,12 @@ const AuctionPhase = ({
         const winner = updatedPlayers[winnerIdx];
         console.log("🏆 Winner found:", winner.name);
 
-        winner.hand.push(currentCard);
+        // winner.hand.push(currentCard);
 
         if (isGold) 
           {
             winner.gold += currentCard.value;
+            winner.hand.push(currentCard);
             setAwaitingCardPayment(true);
             setGoldWinner({ player: winner, index: winnerIdx });
             setGoldCard(currentCard);
@@ -330,60 +335,61 @@ const AuctionPhase = ({
         console.log("some piss")
         return;
       }
-  if (totalSelected < currentBid) {
-    alert(`Selected cards only add up to ${totalSelected}. Must be at least ${currentBid}.`);
-    return;
-  }
+      if (totalSelected < currentBid) {
+        alert(`Selected cards only add up to ${totalSelected}. Must be at least ${currentBid}.`);
+        return;
+      }
 
-  const updatedPlayers = [...players];
-  const hand = [...updatedPlayers[goldPaymentWinner.index].hand];
+      const updatedPlayers = [...players];
+      const hand = [...updatedPlayers[goldPaymentWinner.index].hand];
   
-  // Remove selected gold cards from hand
-  const filtered = hand.filter((_, i) =>
-    !selectedPaymentCards.some((c) => c.idx === i)
-  );
-  updatedPlayers[goldPaymentWinner.index].hand = filtered;
+      // Remove selected gold cards from hand
+      const filtered = hand.filter((_, i) =>
+        !selectedPaymentCards.some((c) => c.idx === i)
+        );
+      updatedPlayers[goldPaymentWinner.index].hand = filtered;
 
-  // Decrease player's gold count
-  updatedPlayers[goldPaymentWinner.index].gold -= totalSelected;
+      // Decrease player's gold count
+      updatedPlayers[goldPaymentWinner.index].gold -= totalSelected;
 
-  // Add the won card to hand
-  updatedPlayers[goldPaymentWinner.index].hand.push(goldPaymentWinner.card);
-  const updatedDiscardPile = [...discardPile];
-  updatedDiscardPile.splice(currentCardIndex, 1); // or use .shift() if always index 0
-  setDiscardPile(updatedDiscardPile);
-  console.log("🧾 Updated discard pile after gold payment:", updatedDiscardPile);
+      // Add the won card to hand
+      console.log("Pushing the card")
+      updatedPlayers[goldPaymentWinner.index].hand.push(goldPaymentWinner.card);
+      const updatedDiscardPile = [...discardPile];
+      updatedDiscardPile.splice(currentCardIndex, 1); // or use .shift() if always index 0
+      setDiscardPile(updatedDiscardPile);
+      console.log("🧾 Updated discard pile after gold payment:", updatedDiscardPile);
 
-  setPlayers(updatedPlayers);
-  setAwaitingGoldPayment(false);
-  setSelectedPaymentCards([]);
-  setCurrentBid(0);
-  // setCurrentCardIndex((prev) => prev + 1);
-  setHighestBidder(null);
-  setActiveBidders(players.map(() => true));
-  setAuctionTurnOffset((prev) => (prev + 1) % players.length);
-  const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
-  const newAuctionStarter = players[newAuctionStarterIndex]?.name;
-  console.log("🎯 Next auction round will start with I am in gold payment:", newAuctionStarter);
-  setActivePlayerIndex(0);
+      setPlayers(updatedPlayers);
+      setAwaitingGoldPayment(false);
+      setSelectedPaymentCards([]);
+      setCurrentBid(0);
+      // setCurrentCardIndex((prev) => prev + 1);
+      setHighestBidder(null);
+      setActiveBidders(players.map(() => true));
+      setAuctionTurnOffset((prev) => (prev + 1) % players.length);
+      const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
+      const newAuctionStarter = players[newAuctionStarterIndex]?.name;
+      console.log("🎯 Next auction round will start with I am in gold payment:", newAuctionStarter);
+      setActivePlayerIndex(0);
 
-  console.log("🔄 I am right before broadcaststate in confirmGoldPayment, Incremented auctionTurnOffset to:", (auctionTurnOffset + 1) % players.length);
+      console.log("🔄 I am right before broadcaststate in confirmGoldPayment, Incremented auctionTurnOffset to:", (auctionTurnOffset + 1) % players.length);
 
-  console.log("📤 About to broadcast auctionTurnOffset =", (auctionTurnOffset + 1) % players.length);
-  broadcastState({
-    players: updatedPlayers,
-    awaitingGoldPayment: false,
-    selectedPaymentCards: [],
-    currentBid: 0,
-    currentCardIndex: 0,
-    highestBidder: null,
-    activeBidders: players.map(() => true),
-    activePlayerIndex: 0,
-    discardPile: updatedDiscardPile,
-    auctionTurnOffset: (auctionTurnOffset + 1) % players.length,
-  });
-  console.log("📤 Broadcasting updated discard pile after the broadcaststate in the confirmgoldpayment:", updatedDiscardPile);
-};
+      console.log("📤 About to broadcast auctionTurnOffset =", (auctionTurnOffset + 1) % players.length);
+      broadcastState({
+        players: updatedPlayers,
+        awaitingGoldPayment: false,
+        selectedPaymentCards: [],
+        currentBid: 0,
+        currentCardIndex: 0,
+        highestBidder: null,
+        activeBidders: players.map(() => true),
+        activePlayerIndex: 0,
+        discardPile: updatedDiscardPile,
+        auctionTurnOffset: (auctionTurnOffset + 1) % players.length,
+      });
+      console.log("📤 Broadcasting updated discard pile after the broadcaststate in the confirmgoldpayment:", updatedDiscardPile);
+    };
 
 
     return (
@@ -453,7 +459,13 @@ const AuctionPhase = ({
       const discardedGold = selectedPaymentCards
       .filter((c) => c.type === "Gold")
       .reduce((sum, c) => sum + c.value, 0);
-      updatedPlayers[goldWinner.index].gold -= discardedGold;
+
+    console.log("🟡 Discarded gold total:", discardedGold);
+    console.log("💰 Gold before:", updatedPlayers[goldWinner.index].gold);
+
+    updatedPlayers[goldWinner.index].gold -= discardedGold;
+
+    console.log("💰 Gold after:", updatedPlayers[goldWinner.index].gold);
 
 
       //Removing Card from the Auction_Pool 

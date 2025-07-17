@@ -23,74 +23,66 @@ const DonationPhase = ({
   const [discarded, setDiscarded] = useState(null);
   const [shared, setShared] = useState([]);
   const [donationDeck, setDonationDeck] = useState(deck);
+  const hasDrawn = useRef(false);
+  const handledSpecialCards = useRef(new Set());
+  const [specialCardToPlay, setSpecialCardToPlay] = useState(null);
+  const [drawnCount, setDrawnCount] = useState(0); // counts non-specials
+
+  //Dice UI
+  const [diceToModify, setDiceToModify] = useState(null);
+  const [diceSelectionCard, setDiceSelectionCard] = useState(null);
+  const [diceChosen, setDiceChosen] = useState(new Set());
+
+   //Resolving Special Dice Cards: 
 
   const playSpecialCard = (card) => {
   console.log(`${player.name} is playing special dice modifier:`, card);
 
-  // Step 1: Resolve "Both" to Plus or Minus
-  if (card.type === "Both") {
-    const choice = prompt("You drew a Both card! Increase or decrease dice? (i/d)").toLowerCase();
-    if (choice === "i") card.type = "Plus";
-    else if (choice === "d") card.type = "Minus";
-    else {
-      alert("Invalid input.");
-      return;
-    }
-  }
-
-  // Step 2: Clone dice from localStorage (or props/state)
+  // Clone dice from localStorage
   const prevState = JSON.parse(localStorage.getItem("last_game_state"));
-  const updatedDice = prevState?.dice ? [...prevState.dice.map(d => ({ ...d }))] : [];
+  const diceClone = prevState?.dice ? [...prevState.dice.map(d => ({ ...d }))] : [];
 
-  if (card.value === 2) {
-    const chosen = new Set();
-    while (chosen.size < 2) {
-      const modifierSymbol = card.type === "Plus" ? "+" : "-";
-      const promptMessage = `${player.name}, you drew a ${modifierSymbol}${card.value} dice modifier card! Choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`;
-      const idx = parseInt(prompt(promptMessage), 10);
-
-      if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
-        alert("Invalid index. Must be 0–4.");
-        continue;
-      }
-
-      if (chosen.has(idx)) {
-        alert("You've already picked that die.");
-        continue;
-      }
-
-      chosen.add(idx);
-      const die = updatedDice[idx];
-      die.value = card.type === "Plus"
-        ? Math.min(6, die.value + 1)
-        : Math.max(1, die.value - 1);
-
-      console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
-    }
-  } else {
-    const modifierSymbol = card.type === "Plus" ? "+" : "-";
-    const promptMessage = `${player.name}, you drew a ${modifierSymbol}${card.value} dice modifier card! Choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`;
-    const idx = parseInt(prompt(promptMessage), 10);
-    if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
-      alert("Invalid die index.");
-      return;
-    }
-
-    const die = updatedDice[idx];
-    die.value = card.type === "Plus"
-      ? Math.min(6, die.value + card.value)
-      : Math.max(1, die.value - card.value);
-
-    console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
+  // Defer to UI for all handling
+  if (card.type === "Both") {
+    // UI will render choice between Plus/Minus
+    setDiceSelectionCard(card);
+    return;
   }
 
-  // ✅ Broadcast the updated dice to everyone
-  broadcastState({ dice: updatedDice });
+  setDiceToModify(diceClone);         // For rendering
+  setDiceSelectionCard(card);         // Which card is active
+  setDiceChosen(new Set());           // For tracking selected dice
 };
 
+ useEffect(() => {
+  if (!specialCardToPlay || !isCurrentPlayer) return;
+
+  const card = specialCardToPlay;
+  if (handledSpecialCards.current.has(card)) return;
+
+  handledSpecialCards.current.add(card);
+
+  setTimeout(() => {
+    playSpecialCard(card);
+
+    // ✅ Remove the resolved special card from the screen
+    setCardsToProcess((prev) =>
+      prev.filter((c) => c !== card)
+    );
+
+    // // ✅ Clear the tracker
+    // setSpecialCardToPlay(null);
+  }, 300);
+}, [specialCardToPlay, isCurrentPlayer]);
 
   useEffect(() => {
-    if (!isCurrentPlayer) return;
+    if (!isCurrentPlayer || hasDrawn.current) {
+      return;
+    }
+    hasDrawn.current = true;
+
+    console.log(`🃏 [${player.name}] Deck before draw:`, deck.map(c => `${c.type} ${c.value}`));
+    console.log(`📦 [${player.name}] Deck size before draw:`, deck.length);
 
     const updatedDeck = [...deck];
     const drawn = [];
@@ -98,12 +90,11 @@ const DonationPhase = ({
     while (drawn.length < numToDraw && updatedDeck.length > 0) {
       const card = updatedDeck.pop();
       if (card.isSpecial) {
-        console.log("💫 Special card drawn:", card);
-        setTimeout(() => {
-          playSpecialCard(card);
-        }, 250); // or 300ms if needed
-      } else {
-        drawn.push(card);
+          // drawn.push(card); // show it like a normal card first
+          setSpecialCardToPlay(card); // trigger effect later
+          continue;
+        } else {
+          drawn.push(card);
       }
     }
 
@@ -121,6 +112,10 @@ const DonationPhase = ({
 
 
   const handleChoice = (card, action) => {
+    if (specialCardToPlay || diceSelectionCard || diceToModify) {
+    console.warn("🛑 Cannot assign cards during special card resolution");
+    return;
+    }
     if (action === "keep") {
       if (kept) return alert("You've already kept a card.");
       setKept(card);
@@ -192,50 +187,135 @@ const DonationPhase = ({
   const currentCard = cardsToProcess[0];
 
   return (
-    <div>
-      <h3>{player.name}'s Donation Turn</h3>
+  <div>
+    <h3>{players[currentPlayerIndex]?.name}'s Donation Turn</h3>
 
-      {!isCurrentPlayer && (
-        <p>⏳ Waiting for {player.name} to complete their turn...</p>
-      )}
+    {/* 🟡 Everyone sees the special card banner */}
+    {specialCardToPlay && (
+      <div style={{ margin: "20px auto", padding: "15px", border: "2px solid gold", borderRadius: "10px", width: "fit-content", backgroundColor: "#fff8dc" }}>
+        <h4 style={{ textAlign: "center" }}>💫 Special Card Drawn!</h4>
+        <Card {...specialCardToPlay} />
+      </div>
+    )}
 
-      {isCurrentPlayer && (
-        <>
-          {currentCard ? (
-            <div>
-              <h4>Choose what to do with this card:</h4>
-              <Card {...currentCard} />
-              <div style={{ marginTop: "10px" }}>
-                <button onClick={() => handleChoice(currentCard, "keep")}>
-                  Keep
-                </button>
-                <button onClick={() => handleChoice(currentCard, "discard")}>
-                  Discard
-                </button>
-                <button onClick={() => handleChoice(currentCard, "pool")}>
-                  Pool
-                </button>
-              </div>
+    {/* 🟣 Both card choice */}
+    {diceSelectionCard?.type === "Both" && !diceToModify && (
+      <div style={{ marginTop: "20px", border: "2px solid violet", padding: "10px", borderRadius: "10px" }}>
+        <h4>💫 You drew a Both card ({diceSelectionCard.value})</h4>
+        <p>Choose how you'd like to use it:</p>
+        {isCurrentPlayer ? (
+          <>
+            <button style={{ marginRight: "10px" }} onClick={() => playSpecialCard({ ...diceSelectionCard, type: "Plus" })}>
+              ➕ Increase
+            </button>
+            <button onClick={() => playSpecialCard({ ...diceSelectionCard, type: "Minus" })}>
+              ➖ Decrease
+            </button>
+          </>
+        ) : (
+          <p style={{ color: "gray" }}>Waiting for {player.name} to choose...</p>
+        )}
+      </div>
+    )}
+
+    {/* 🎲 Dice resolution UI */}
+    {diceToModify && diceSelectionCard && (
+      <div style={{ marginTop: "20px", border: "2px dashed gray", padding: "10px", borderRadius: "10px" }}>
+        <h4>
+          🎲 Modify Dice — {diceSelectionCard.type === "Plus" ? "+" : "-"}
+          {diceSelectionCard.value}
+        </h4>
+        {!isCurrentPlayer && (
+          <p style={{ color: "gray", marginBottom: "10px" }}>
+            ⏳ Waiting for {player.name} to select dice...
+          </p>
+        )}
+        <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
+          {diceToModify.map((die, i) => (
+            <div key={i} style={{ border: "1px solid #ccc", padding: "10px", borderRadius: "8px", textAlign: "center", minWidth: "80px" }}>
+              <div style={{ fontWeight: "bold" }}>{die.resource_type}</div>
+              <div style={{ fontSize: "24px", margin: "6px 0" }}>{die.value}</div>
+              <button
+                disabled={!isCurrentPlayer || diceChosen.has(i)}
+                onClick={() => {
+                  if (!isCurrentPlayer) return;
+
+                  const updated = [...diceToModify];
+                  updated[i].value = diceSelectionCard.type === "Plus"
+                    ? Math.min(6, updated[i].value + 1)
+                    : Math.max(1, updated[i].value - 1);
+
+                  const nextChosen = new Set(diceChosen);
+                  nextChosen.add(i);
+                  setDiceToModify(updated);
+                  setDiceChosen(nextChosen);
+
+                  const needed = diceSelectionCard.value === 2 ? 2 : 1;
+                  if (nextChosen.size === needed) {
+                    broadcastState({ dice: updated });
+                    setSpecialCardToPlay(null);
+                    setDiceToModify(null);
+                    setDiceSelectionCard(null);
+                    setDiceChosen(new Set());
+                    setCardsToProcess((prev) => prev.filter((c) => c !== diceSelectionCard));
+                  }
+                }}
+              >
+                {diceSelectionCard.type === "Plus" ? "➕" : "➖"}
+              </button>
             </div>
-          ) : (
-            <div>
-              <p>
-                You kept: {kept?.type} {kept?.value}
-              </p>
-              <p>
-                You discarded: {discarded?.type} {discarded?.value}
-              </p>
-              <p>
-                Shared cards:{" "}
-                {shared.map((c, i) => `${c.type} ${c.value}`).join(", ")}
-              </p>
-              <button onClick={confirmTurn}>Confirm Turn</button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* 👤 Non-current player's view */}
+    {!isCurrentPlayer && (
+      <p>⏳ Waiting for {players[currentPlayerIndex]?.name} to complete their turn...</p>
+    )}
+
+    {/* ✅ Main player control section */}
+    {isCurrentPlayer && (
+      <>
+        {currentCard ? (
+          <div>
+            <h4>Choose what to do with this card:</h4>
+            <Card {...currentCard} />
+            <div style={{ marginTop: "10px" }}>
+              <button onClick={() => handleChoice(currentCard, "keep")}
+                disabled={specialCardToPlay || diceSelectionCard || diceToModify}>
+                Keep
+              </button>
+              <button onClick={() => handleChoice(currentCard, "discard")}
+                disabled={specialCardToPlay || diceSelectionCard || diceToModify}>
+                Discard
+              </button>
+              <button onClick={() => handleChoice(currentCard, "pool")}
+                disabled={specialCardToPlay || diceSelectionCard || diceToModify}>
+                Pool
+              </button>
             </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+          </div>
+        ) : (
+          <div>
+            <p>
+              You kept: {kept?.type} {kept?.value}
+            </p>
+            <p>
+              You discarded: {discarded?.type} {discarded?.value}
+            </p>
+            <p>
+              Shared cards:{" "}
+              {shared.map((c, i) => `${c.type} ${c.value}`).join(", ")}
+            </p>
+            <button onClick={confirmTurn}>Confirm Turn</button>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+);
+
 };
 
 export default DonationPhase;
