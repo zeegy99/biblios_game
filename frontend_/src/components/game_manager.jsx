@@ -294,7 +294,7 @@ useEffect(() => {
   </div>
 )}
 
-      {phase === "donation" && (
+      {phase === "donation" && playerName === players[currentPlayerIndex]?.name &&(
         
         <DonationPhase
           isCurrentPlayer={playerName === players[currentPlayerIndex]?.name}

@@ -18,6 +18,10 @@ const DonationPhase = ({
   currentPlayerIndex,
   phase,
 }) => {
+
+  console.log("🧠 DonationPhase mounted for", player?.name);
+
+  
   const numToDraw = 2 + (totalPlayers - 1);
   const [cardsToProcess, setCardsToProcess] = useState([]);
   const [kept, setKept] = useState(null);
@@ -78,29 +82,41 @@ useEffect(() =>
   //For DrawingCards
 useEffect(() => 
 {
-  if (phase !== "donation" || !isCurrentPlayer) return;
+  console.log(`📍 DRAW EFFECT: phase=${phase}, isCurrentPlayer=${isCurrentPlayer}, drawnCount=${drawnCount}, hasDrawn=${hasDrawn.current}`);
+   if (phase !== "donation" || !isCurrentPlayer) {
+    console.log("I am in if (phase !== ")
+    return;
+   }
 
-  if (hasDrawn.current) {
-    console.warn("🛑 Duplicate draw attempt prevented for", player.name);
+  if (hasDrawn.current || drawnCount > 0) {
+    console.warn(`🛑 Skipping draw for ${player.name}: already drawn`);
     return;
   }
 
   console.log("📌 Draw effect triggered for", player.name);
   hasDrawn.current = true;
 
+  console.log("📦 Current deck (from props):", deck.map(c => `${c.type} ${c.value}`));
+  console.log("📦 donationDeck (local state):", donationDeck.map(c => `${c.type} ${c.value}`));
+
+
   const updatedDeck = [...deck];
   const drawn = [];
 
-  while (drawn.length < numToDraw && updatedDeck.length > 0) {
+  while (drawn.length < numToDraw && updatedDeck.length > 0) 
+  {
     const card = updatedDeck.pop();
 
-    if (card.isSpecial) {
+    if (card.isSpecial) 
+    {
       handledSpecialCards.current.add(card); // ✅ Queue for later
       continue; 
     }
 
     drawn.push(card);
   }
+  setDrawnCount(drawn.length);
+  console.log("setDrawnCount to ", drawn.length)
 
   console.log(`🃏 ${player.name} drew cards:`, drawn);
   console.log(`📦 Deck size after draw: ${updatedDeck.length}`);
@@ -194,7 +210,7 @@ useEffect(() =>
   setDiscarded(null);
   setShared([]);
   setCardsToProcess([]);
-
+  setDrawnCount(0);
   
 };
 
