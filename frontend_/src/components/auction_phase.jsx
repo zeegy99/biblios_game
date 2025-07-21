@@ -40,7 +40,8 @@ const AuctionPhase = ({
   
 
 
-  useEffect(() => {
+  useEffect(() => 
+  {
     if (activeBidders.length === 0) {
       const allIn = players.map(() => true);
       setActiveBidders(allIn);
@@ -48,26 +49,27 @@ const AuctionPhase = ({
     }
   }, [players, activeBidders, setActiveBidders]);
 
-  useEffect(() => {
-  if (discardPile[currentCardIndex]) 
-    {
-      const allTrue = players.map(() => true);
-      setActiveBidders(allTrue);
-      setActivePlayerIndex(0); 
-      setCurrentBid(0);
-      setHighestBidder(null);
+  useEffect(() => 
+  {
+    if (discardPile[currentCardIndex]) 
+      {
+        const allTrue = players.map(() => true);
+        setActiveBidders(allTrue);
+        setActivePlayerIndex(0); 
+        setCurrentBid(0);
+        setHighestBidder(null);
 
-      console.log("🔁 New auction round started — resetting activeBidders:", allTrue);
-      console.log("Active bidders:", activeBidders)
-      console.log("📥 auctionTurnOffset received:", auctionTurnOffset);
+        console.log("🔁 New auction round started — resetting activeBidders:", allTrue);
+        console.log("Active bidders:", activeBidders)
+        console.log("📥 auctionTurnOffset received:", auctionTurnOffset);
 
-      broadcastState({
-        activeBidders: allTrue,
-        activePlayerIndex: 0,
-        currentBid: 0,
-        highestBidder: null,
-      });
-    }
+        broadcastState({
+          activeBidders: allTrue,
+          activePlayerIndex: 0,
+          currentBid: 0,
+          highestBidder: null,
+        });
+      }
   }, [currentCardIndex]);
 
   console.log("New activeBidders", activeBidders)
@@ -131,7 +133,10 @@ const AuctionPhase = ({
     const stillIn = updated.filter(Boolean).length;
     console.log("I am in auction_phase handle next and this is stillIn", stillIn)
     if (stillIn === 1) {
-      finishAuction(updated, activePlayerIndex);
+      console.log("StillIn === 1 within HandleBid")
+      console.log("Printing amount, currentBid", amount, currentBid)
+      console.log("Passing amount into finishAuction")
+      finishAuction(updated, activePlayerIndex, amount);
     } else {
       // nextPlayer();
     }
@@ -162,6 +167,7 @@ const AuctionPhase = ({
       console.log("🟠 All players passed");
       finishAuction(updated, hasBid ? highestBidder : null);
     } else if (stillIn === 1 && hasBid) {
+      // console.log("Debug Phase 1, stillIn === 1")
       console.log("🟢 One player left — winner:", players[highestBidder]?.name);
       finishAuction(updated, highestBidder);
     } else {
@@ -170,16 +176,15 @@ const AuctionPhase = ({
   };
 
   
-  const finishAuction = (finalBidders, winnerIndex) => 
+  const finishAuction = (finalBidders, winnerIndex, winningBid = currentBid) => 
   {
-    console.log("🔔 finishAuction called. Winner index:", winnerIndex);
 
-    
+    console.log("FinishAuction called with winningBid of", winningBid)
 
-    console.log("Deferring Disacrd Pile removal");
-
+  
     //If No one wins the card
-    if (winnerIndex == null) {
+    if (winnerIndex == null) 
+    {
       alert("No one bid — card discarded.");
       console.log("⚠️ Everyone passed — no winner.");
 
@@ -212,8 +217,9 @@ const AuctionPhase = ({
         
     } 
 
-    else //If somene wins the card
-      {
+    else //A player won the card
+    {
+        console.log("Debug step 2, in the else statement ")
         const updatedPlayers = [...players];
         const winnerName = biddingOrder[winnerIndex].name;
         const winnerIdx = players.findIndex((p) => p.name === winnerName);
@@ -223,10 +229,11 @@ const AuctionPhase = ({
 
         if (isGold) //Settig up Gold Card Payment
           {
+            console.log("if (isGold) Debug step 3, printing currentBid", currentBid)
             winner.gold += currentCard.value;
             winner.hand.push(currentCard);
             setAwaitingCardPayment(true);
-            setGoldWinner({ player: winner, index: winnerIdx });
+            setGoldWinner({ player: winner, index: winnerIdx, bid: winningBid });
             setGoldCard(currentCard);
             setPlayers(updatedPlayers);
 
@@ -235,7 +242,7 @@ const AuctionPhase = ({
             broadcastState({
               players: updatedPlayers,
               awaitingCardPayment: true,
-              goldWinner: { player: winner, index: winnerIdx },
+              goldWinner: { player: winner, index: winnerIdx, bid: winningBid },
               goldCard: currentCard,
             });
 
@@ -244,7 +251,7 @@ const AuctionPhase = ({
         else 
           {
             setAwaitingGoldPayment(true);
-            setGoldPaymentWinner({ player: winner, index: winnerIdx, card: currentCard });
+            setGoldPaymentWinner({ player: winner, index: winnerIdx, card: currentCard, bid: winningBid });
             setPlayers(updatedPlayers);
 
             console.log("📦 Non-gold card won — awaiting gold payment from:", winner.name);
@@ -256,12 +263,13 @@ const AuctionPhase = ({
                 player: winner,
                 index: winnerIdx,
                 card: currentCard,
+                bid: winningBid
             },
           });
 
           return;
         }
-      }
+    }
 
   console.log("📦 Checking discard pile length:", updatedDiscardPile.length);
 
@@ -296,13 +304,14 @@ const AuctionPhase = ({
     const totalSelected = selectedPaymentCards.reduce((sum, c) => sum + c.value, 0);
 
     const confirmGoldPayment = () => {
-      console.log("I have been received and I am in confirmGoldPayment")
+      console.log("I have been received and I am in confirmGoldPayment and this is goldPaymentWinner.bid", goldPaymentWinner.bid)
+
       if (!isLocalPlayerWinner) {
         console.log("some piss")
         return;
       }
-      if (totalSelected < currentBid) {
-        alert(`Selected cards only add up to ${totalSelected}. Must be at least ${currentBid}.`);
+      if (totalSelected < goldPaymentWinner.bid) {
+        alert(`Selected cards only add up to ${totalSelected}. Must be at least ${goldPaymentWinner.bid}.`);
         return;
       }
 
@@ -369,7 +378,7 @@ const AuctionPhase = ({
 
     return (
       <div>
-        <h3>{goldPaymentWinner.player.name}, pay {currentBid} gold with your gold cards:</h3>
+        <h3>{goldPaymentWinner.player.name}, pay {goldPaymentWinner.bid} gold with your gold cards:</h3>
         <p>Total selected: {totalSelected}</p>
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           {players[goldPaymentWinner.index].hand.map((card, idx) => (
@@ -404,6 +413,8 @@ const AuctionPhase = ({
 
   // 🔶 Gold card won → discard equal number of cards
   if (awaitingCardPayment && goldWinner) {
+    console.log("I am in awaitingCardPayment")
+    console.log("This is current bid", currentBid)
     const toggleCardSelection = (card, idx) => {
       setSelectedPaymentCards((prev) => {
         const alreadySelected = prev.find((c) => c.idx === idx);
@@ -415,10 +426,10 @@ const AuctionPhase = ({
 
     const confirmCardPayment = () => 
     {
-      console.log("I AM IN CONFIRMCADPAYMENT HELLO")
-      if (selectedPaymentCards.length !== currentBid) 
+      console.log("I AM IN CONFIRMCADPAYMENT and this is the new goldWinner.bid", goldWinner.bid)
+      if (selectedPaymentCards.length !== goldWinner.bid) 
       {
-        alert(`You must select exactly ${currentBid} cards.`);
+        alert(`You must select exactly ${goldWinner.bid} cards.`);
         return;
       }
 
@@ -445,9 +456,9 @@ const AuctionPhase = ({
       console.log("💰 Gold after:", updatedPlayers[goldWinner.index].gold);
 
 
-      //Removing Card from the Auction_Pool 
+     
       const updatedDiscardPile = [...discardPile];
-      updatedDiscardPile.splice(currentCardIndex, 1); // remove the card that was just won
+      updatedDiscardPile.splice(currentCardIndex, 1); 
       setDiscardPile(updatedDiscardPile);
       console.log("ConfirmCardPayment updating the discard pile", updatedDiscardPile)
 
@@ -456,7 +467,7 @@ const AuctionPhase = ({
       console.log("🎯 Next auction round will start with:", newAuctionStarter);
 
       setAuctionTurnOffset(newAuctionStarterIndex);
-      setActivePlayerIndex(0); // always biddingOrder[0]
+      setActivePlayerIndex(0); 
       setHighestBidder(null);
       setActiveBidders(players.map(() => true));
       setCurrentCardIndex(0);
@@ -494,7 +505,7 @@ const AuctionPhase = ({
 
     return (
       <div>
-        <h3>{goldWinner.player.name}, select {currentBid} cards to discard:</h3>
+        <h3>{goldWinner.player.name}, select {goldWinner.bid} cards to discard:</h3>
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           {goldWinner.player.hand.map((card, idx) => (
             <div
@@ -539,7 +550,7 @@ const AuctionPhase = ({
     <>
   <input
     type="number"
-    min={0}
+    min={1}
     placeholder="Enter bid"
     value={bidInput}
     onChange={(e) => setBidInput(e.target.value)}
