@@ -83,6 +83,8 @@ const AuctionPhase = ({
   const currentCard = discardPile[currentCardIndex];
   const isGold = currentCard?.type === "Gold";
   const player = biddingOrder[activePlayerIndex];
+  const [bidInput, setBidInput] = useState("");
+
 
 
   const getNextActivePlayerIndex = () => 
@@ -544,17 +546,38 @@ const AuctionPhase = ({
 
       {player.name === playerName && (
   <>
-    <input
-      type="number"
-      min={0}
-      placeholder="Enter bid"
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          handleBid(Number(e.target.value));
-          e.target.value = "";
-        }
-      }}
-    />
+    <>
+  <input
+    type="number"
+    min={0}
+    placeholder="Enter bid"
+    value={bidInput}
+    onChange={(e) => setBidInput(e.target.value)}
+  />
+  <button
+  onClick={() => {
+    const parsed = Number(bidInput);
+    const isInvalid = bidInput === "" || isNaN(parsed) || parsed < 0;
+
+    if (isInvalid) {
+      alert("Please enter a valid number.");
+      return;
+    }
+
+    handleBid(parsed);
+    setBidInput("");
+  }}
+  style={{
+    opacity: bidInput === "" || isNaN(Number(bidInput)) ? 0.5 : 1,
+    pointerEvents:
+      bidInput === "" || isNaN(Number(bidInput)) ? "none" : "auto",
+  }}
+>
+  Bid
+</button>
+
+</>
+
     <button onClick={handlePass}>Pass</button>
   </>
 )}
