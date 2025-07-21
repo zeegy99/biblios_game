@@ -174,11 +174,9 @@ const AuctionPhase = ({
   {
     console.log("🔔 finishAuction called. Winner index:", winnerIndex);
 
-    const updatedDiscardPile = [...discardPile];
-    updatedDiscardPile.splice(currentCardIndex, 1);
-    setDiscardPile(updatedDiscardPile);
+    
 
-    console.log("🗑️ Discard pile after removal:", updatedDiscardPile);
+    console.log("Deferring Disacrd Pile removal");
 
     //If No one wins the card
     if (winnerIndex == null) {
@@ -266,38 +264,8 @@ const AuctionPhase = ({
       }
 
   console.log("📦 Checking discard pile length:", updatedDiscardPile.length);
-  if (updatedDiscardPile.length > 0) {
 
-    const newOffset = (auctionTurnOffset + 1) % players.length;
-    const newAuctionStarter = players[newOffset]?.name;
-
-    console.log("🆕 Starting next auction round — new offset:", newOffset, "=>", newAuctionStarter);
-
-    setCurrentCardIndex(0);
-    setHighestBidder(null);
-    setActiveBidders(players.map(() => true)); 
-    setAuctionTurnOffset(newOffset);
-    setActivePlayerIndex(0);
-    setCurrentBid(0);
-
-    broadcastState({
-      discardPile: updatedDiscardPile,
-      currentCardIndex: 0,
-      highestBidder: null,
-      activeBidders: players.map(() => true),
-      activePlayerIndex: 0,
-      currentBid: 0,
-      auctionTurnOffset: newOffset,
-    });
-  } else {
-    console.log("🎯 No more cards — transitioning to scoring phase.");
-    setPhase("scoring");
-    broadcastState({
-      discardPile: [],
-      phase: "scoring",
-    });
-  }
-};
+  };
 
 
   if (!currentCard) {
@@ -387,6 +355,15 @@ const AuctionPhase = ({
         auctionTurnOffset: (auctionTurnOffset + 1) % players.length,
       });
       console.log("📤 Broadcasting updated discard pile after the broadcaststate in the confirmgoldpayment:", updatedDiscardPile);
+
+      if (updatedDiscardPile.length === 0) {
+        console.log("🎯 No more cards — transitioning to scoring phase.");
+        setPhase("scoring");
+        broadcastState({
+          discardPile: [],
+          phase: "scoring",
+        });
+      }
     };
 
 
@@ -436,9 +413,11 @@ const AuctionPhase = ({
       });
     };
 
-    const confirmCardPayment = () => {
+    const confirmCardPayment = () => 
+    {
       console.log("I AM IN CONFIRMCADPAYMENT HELLO")
-      if (selectedPaymentCards.length !== currentBid) {
+      if (selectedPaymentCards.length !== currentBid) 
+      {
         alert(`You must select exactly ${currentBid} cards.`);
         return;
       }
@@ -458,12 +437,12 @@ const AuctionPhase = ({
       .filter((c) => c.type === "Gold")
       .reduce((sum, c) => sum + c.value, 0);
 
-    console.log("🟡 Discarded gold total:", discardedGold);
-    console.log("💰 Gold before:", updatedPlayers[goldWinner.index].gold);
+      console.log("🟡 Discarded gold total:", discardedGold);
+      console.log("💰 Gold before:", updatedPlayers[goldWinner.index].gold);
 
-    updatedPlayers[goldWinner.index].gold -= discardedGold;
+      updatedPlayers[goldWinner.index].gold -= discardedGold;
 
-    console.log("💰 Gold after:", updatedPlayers[goldWinner.index].gold);
+      console.log("💰 Gold after:", updatedPlayers[goldWinner.index].gold);
 
 
       //Removing Card from the Auction_Pool 
@@ -473,14 +452,14 @@ const AuctionPhase = ({
       console.log("ConfirmCardPayment updating the discard pile", updatedDiscardPile)
 
       const newAuctionStarterIndex = (auctionTurnOffset + 1) % players.length;
-    const newAuctionStarter = players[newAuctionStarterIndex]?.name;
-  console.log("🎯 Next auction round will start with:", newAuctionStarter);
+      const newAuctionStarter = players[newAuctionStarterIndex]?.name;
+      console.log("🎯 Next auction round will start with:", newAuctionStarter);
 
-  setAuctionTurnOffset(newAuctionStarterIndex);
-  setActivePlayerIndex(0); // always biddingOrder[0]
-  setHighestBidder(null);
-  setActiveBidders(players.map(() => true));
-  setCurrentCardIndex(0);
+      setAuctionTurnOffset(newAuctionStarterIndex);
+      setActivePlayerIndex(0); // always biddingOrder[0]
+      setHighestBidder(null);
+      setActiveBidders(players.map(() => true));
+      setCurrentCardIndex(0);
       
       setPlayers(updatedPlayers);
       setAwaitingCardPayment(false);
@@ -488,18 +467,29 @@ const AuctionPhase = ({
       setCurrentBid(0);
       
 
-      broadcastState({
-  players: updatedPlayers,
-  awaitingCardPayment: false,
-  selectedPaymentCards: [],
-  currentBid: 0,
-  discardPile: updatedDiscardPile,
-  auctionTurnOffset: newAuctionStarterIndex,
-  activePlayerIndex: 0,
-  activeBidders: players.map(() => true),
-  highestBidder: null,
-  currentCardIndex: 0,
-});
+      broadcastState
+      ({
+        players: updatedPlayers,
+        awaitingCardPayment: false,
+        selectedPaymentCards: [],
+        currentBid: 0,
+        discardPile: updatedDiscardPile,
+        auctionTurnOffset: newAuctionStarterIndex,
+        activePlayerIndex: 0,
+        activeBidders: players.map(() => true),
+        highestBidder: null,
+        currentCardIndex: 0,
+      });
+
+      if (updatedDiscardPile.length === 0) 
+      {
+        console.log("🎯 No more cards — transitioning to scoring phase.");
+        setPhase("scoring");
+        broadcastState({
+          discardPile: [],
+          phase: "scoring",
+        });
+      }
     };
 
     return (
