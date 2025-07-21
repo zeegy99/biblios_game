@@ -158,8 +158,23 @@ useEffect(() =>
     } else if (action === "pool") {
       if (shared.length >= numToDraw - 2)
         return alert("Too many shared cards.");
-      setShared([...shared, card]);
-    }
+
+       const newShared = [...shared, card];
+  const pooledCard = { ...card, pooledBy: player.name };
+  const updatedSharedPool = [...sharedPool, pooledCard];
+
+  setShared(newShared);
+  setSharedPool(updatedSharedPool); // ✅ Update local sharedPool state
+
+  broadcastState({
+    sharedPool: updatedSharedPool, // ✅ Broadcast full updated shared pool
+    donationAction: {
+      player: player.name,
+      action: "pooled",
+      card: pooledCard,
+    },
+  });
+}
 
     setCardsToProcess((prev) => prev.slice(1));
   };
@@ -182,7 +197,7 @@ useEffect(() =>
   );
 
   const updatedDiscard = [...discardPile, discarded];
-  const updatedShared = [...sharedPool, ...shared];
+  const updatedShared = [...sharedPool];
   const lastDonatorIdx = players.findIndex(p => p.name === player.name);
 
   console.log("✅ Updated players before broadcast:", updatedPlayers);
@@ -357,6 +372,20 @@ useEffect(() =>
         )}
       </>
     )}
+
+    <div style={{ marginTop: "30px" }}>
+  <h3>🫱 Shared Cards</h3>
+  <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+    {sharedPool.map((card, idx) => (
+      <div key={idx} style={{ textAlign: "center" }}>
+        <Card card={card} />
+        <p style={{ fontSize: "0.9em", color: "gray" }}>
+          Pooled by {card.pooledBy || "?"}
+        </p>
+      </div>
+    ))}
+  </div>
+</div>
   </div>
 );
 

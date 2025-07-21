@@ -159,6 +159,11 @@ useEffect(() => {
     setGoldCard(gameState.goldCard ?? null);
     setAuctionTurnOffset(gameState.auctionTurnOffset ?? 0);
 
+    if (gameState.donationAction) {
+  const { player, action, card } = gameState.donationAction;
+  console.log(`🔊 ${player} just ${action} a card: ${card.type} ${card.value}`);
+}
+
   };
 
   // ✅ Use fallback *once* before listener
