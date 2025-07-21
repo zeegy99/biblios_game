@@ -294,8 +294,8 @@ useEffect(() => {
   </div>
 )}
 
-      {phase === "donation" && playerName === players[currentPlayerIndex]?.name &&(
-        
+      {phase === "donation" &&(
+        // playerName === players[currentPlayerIndex]?.name &&
         <DonationPhase
           isCurrentPlayer={playerName === players[currentPlayerIndex]?.name}
           player={players.find(p => p.name === playerName)} // 👈 local player!

@@ -33,15 +33,15 @@ export function buildDeck() {
   }
 
   // 2 of each special card type: Plus, Minus, Both
-  // for (let j = 1; j < 3; j++) {
-  //   ["Plus", "Minus", "Both"].forEach(type => {
-  //     deck.push({
-  //       value: j,
-  //       type,
-  //       isSpecial: true
-  //     });
-  //   });
-  // }
+  for (let j = 1; j < 3; j++) {
+    ["Plus", "Minus", "Both"].forEach(type => {
+      deck.push({
+        value: j,
+        type,
+        isSpecial: true
+      });
+    });
+  }
 
   shuffle(deck);
   return deck;
