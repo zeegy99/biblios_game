@@ -11,6 +11,7 @@ import socket from "../socket";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import PlayerHand from "./player_hand";
 
 const GameRunner = ({ playerName }) => {
   // console.log("🧠 GameRunner mounted with playerName:", playerName);
@@ -484,12 +485,18 @@ useEffect(() => {
         {/* ✅ KEEP: Player sees only their own hand */}
         <h4>{playerName}'s Hand</h4>
         <ul>
+          <PlayerHand
+    hand={players.find(p => p.name === playerName)?.hand || []}
+    isCurrentPlayer={true}
+  />
           {players.find(p => p.name === playerName)?.hand.map((card, index) => (
             <li key={index}>
               {card.type} {card.value}
             </li>
           )) ?? <li>(No cards)</li>}
         </ul>
+
+        
 
         {/* 🔻 CHANGED: Hide discard pile unless debugging */}
         {false && (
