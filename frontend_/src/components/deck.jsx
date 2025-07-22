@@ -26,7 +26,7 @@ export function buildDeck() {
       deck.push({
         value: k,
         type: "Gold",
-        tieBreaker: "None",
+        tieBreaker: "N",
         isSpecial: false,
       });
     }

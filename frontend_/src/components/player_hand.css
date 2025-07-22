@@ -1,30 +1,27 @@
-/* src/components/player_hand.css */
-.player-hand {
+.fan-card {
+  position: absolute;
+  width: 120px;
+  height: 180px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  transform-origin: center;
+  z-index: calc(100 + var(--i));
+
+  /* ✅ straight line layout */
+  transform: translateX(calc(var(--i) * 75px)); /* horizontal only */
+}
+
+.player-hand-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-  padding: 1rem;
-  margin-top: 1rem;
-  gap: -10px; /* slight overlap */
-  position: relative;
-  height: 180px;
+  align-items: center;
+  overflow: visible;
 }
 
-.card-container {
-  transform: rotate(-5deg);
-  margin-left: -40px; /* overlapping effect */
-  transition: transform 0.2s;
-}
-
-.card-container:hover {
-  transform: translateY(-10px) rotate(-5deg);
-  z-index: 10;
-}
-
-.player-hand.active .card-container {
-  cursor: pointer;
-}
-
-.player-hand.inactive .card-container {
-  opacity: 0.6;
+.fan-card:hover {
+  transform: translateX(calc(var(--i) * 75px)) translateY(-20px) scale(1.05);
+  z-index: 999;
 }
