@@ -28,7 +28,8 @@ const SharedPoolSelection = ({
 
   
   const player = players[sharedSelectionIndex];
-  const isCurrentPlayer = player.name === playerName;
+  const currentSelector = players[sharedSelectionIndex];
+  const isCurrentPlayer = currentSelector?.name === playerName;
 
   const handleChoice = (choiceIdx) => {
   if (!isCurrentPlayer) {
@@ -92,35 +93,41 @@ if (!sharedPool.length && !isCurrentPlayer) {
   return <p>Waiting for other players...</p>;
 }
 
-  return (
-    <div>
-      <h3>{player.name}'s Turn - Shared Pool Selection</h3>
+ return (
+  <div>
+    <h3>
+      {isCurrentPlayer
+        ? `${player.name}'s Turn - Shared Pool Selection`
+        : `Shared Pool by ${players[sharedSelectionIndex]?.name} (watching selection)`}
+    </h3>
 
-      {!isCurrentPlayer && (
-        <p>⏳ Waiting for {player.name} to choose a card...</p>
-      )}
+    {!isCurrentPlayer && (
+      <p>⏳ Waiting for {players[sharedSelectionIndex]?.name} to choose a card...</p>
+    )}
 
-      {isCurrentPlayer && sharedPool.length > 0 && (
-  <>
-    <p>Select a card or skip:</p>
-    <div style={{ display: "flex", flexWrap: "wrap" }}>
-      {sharedPool.map((card, idx) => (
-        <div key={idx} style={{ margin: "10px" }}>
-          <Card {...card} />
-          <button
-            onClick={() => handleChoice(idx)}
-            disabled={!sharedPool[idx]} // stale guard
-          >
-            Take
-          </button>
+    {sharedPool.length > 0 && (
+      <>
+        {isCurrentPlayer && <p>Select a card or skip:</p>}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+          {sharedPool.map((card, idx) => (
+            <div key={idx} style={{ textAlign: "center", opacity: card.taken ? 0.4 : 1 }}>
+              <Card {...card} />
+              <p style={{ fontSize: "0.9em", color: "gray" }}>
+                Pooled by {card.pooledBy || "?"}
+              </p>
+              {isCurrentPlayer && !card.taken ? (
+                <button onClick={() => handleChoice(idx)}>Take</button>
+              ) : card.taken ? (
+                <p style={{ color: "red", fontSize: "0.8em" }}>Taken</p>
+              ) : null}
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
-  </>
-)}
+      </>
+    )}
+  </div>
+);
 
-    </div>
-  );
 };
 
 export default SharedPoolSelection;
