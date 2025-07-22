@@ -8,7 +8,10 @@ import SharedPoolSelection from "./shared_selection";
 import { buildDeck } from "./deck.jsx";
 import { rollDice } from "../utils/setup";
 import socket from "../socket";
+import { useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import PlayerHand from "./player_hand";
 
 const GameRunner = ({ playerName }) => {
   // console.log("🧠 GameRunner mounted with playerName:", playerName);
@@ -39,6 +42,25 @@ const GameRunner = ({ playerName }) => {
   const [goldWinner, setGoldWinner] = useState(null);
   const [goldCard, setGoldCard] = useState(null);
   const [auctionTurnOffset, setAuctionTurnOffset] = useState(0);
+  const [finalResults, setFinalResults] = useState([]);
+  const { room } = useParams();
+
+  const navigate = useNavigate();
+
+  const handleRestart = () => {
+  localStorage.removeItem("last_game_state");
+  localStorage.removeItem("start_game_payload");
+
+  // Optional: reset any local state if needed
+  setFinalResults([]);
+  setFinalPhaseDone(false);
+  setPlayers([]);
+  setDeck([]);
+  setDice(null);
+
+  navigate("/lobby");
+};
+
 
 
   //Building out what gameState is
@@ -75,7 +97,7 @@ const GameRunner = ({ playerName }) => {
     ...newPartialState        // ⬅️ overwrite any fields provided
   };
   console.log("📤 Broadcasting FULL game state:", fullState, playerName);
-  socket.emit("sync_game_state", { room: "biblios", gameState: fullState });
+  socket.emit("sync_game_state", { room: `${room}`, gameState: fullState });
 };
 
 useEffect(() => {
@@ -137,6 +159,11 @@ useEffect(() => {
     setGoldCard(gameState.goldCard ?? null);
     setAuctionTurnOffset(gameState.auctionTurnOffset ?? 0);
 
+    if (gameState.donationAction) {
+  const { player, action, card } = gameState.donationAction;
+  console.log(`🔊 ${player} just ${action} a card: ${card.type} ${card.value}`);
+}
+
   };
 
   // ✅ Use fallback *once* before listener
@@ -153,7 +180,8 @@ useEffect(() => {
 
   
   if (playerName) {
-    socket.emit("join_game", { room: "biblios", playerName });
+    socket.emit("join_game", { room: `${room}`, playerName });
+    console.log("what is going on")
 
     const cachedStart = localStorage.getItem("start_game_payload");
     if (cachedStart) {
@@ -190,7 +218,7 @@ useEffect(() => {
           auctionTurnOffset: 0,  
         };
         console.log("👑 Host broadcasting initial game state:", state);
-        socket.emit("sync_game_state", { room: "biblios", gameState: state });
+        socket.emit("sync_game_state", { room: `${room}`, gameState: state });
       }, 0);
 
       localStorage.removeItem("start_game_payload");
@@ -272,20 +300,21 @@ useEffect(() => {
   </div>
 )}
 
-      {phase === "donation" && (
-        
+      {phase === "donation" &&(
+        // playerName === players[currentPlayerIndex]?.name &&
         <DonationPhase
-          isCurrentPlayer={currentPlayer.name === playerName}
-          player={currentPlayer}
+          isCurrentPlayer={playerName === players[currentPlayerIndex]?.name}
+          player={players.find(p => p.name === playerName)} // 👈 local player!
+          players={players}
           deck={deck}
           setDeck={setDeck}
           setDiscardPile={setDiscardPile}
           discardPile={discardPile}
           sharedPool={sharedPool}
+          phase={phase}
           setSharedPool={setSharedPool}
           setPlayers={setPlayers}
           broadcastState={broadcastState}
-          players={players} 
           currentPlayerIndex={currentPlayerIndex}
           totalPlayers={players.length}
           onFinish={({ updatedDiscard, updatedShared, updatedPlayers }) => {
@@ -405,26 +434,32 @@ useEffect(() => {
 
       {phase === "scoring" && dice && (
         <ScoringPhase
-          players={players}
-          dice={dice}
-          isHost={players[0]?.name === playerName} // ✅ this line was missing before
-          setFinalResults={(scoredPlayers) => {
-            setPlayers(scoredPlayers);
-            setFinalPhaseDone(true);
-            broadcastState();
-          }}
-
-          goToResults={() => {
-          setPhase("results");
-      broadcastState({ phase: "results" });
-    }}
-        />
+  players={players}
+  dice={dice}
+  isHost={players[0]?.name === playerName}
+  setFinalResults={(scoredPlayers) => {
+    setPlayers(scoredPlayers);
+    setFinalResults(scoredPlayers);
+    setFinalPhaseDone(true);
+    
+    // ✅ broadcast to all players
+    broadcastState({
+      players: scoredPlayers,
+      finalResults: scoredPlayers,
+      finalPhaseDone: true,
+    });
+  }}
+  goToResults={() => {
+    setPhase("results");
+    broadcastState({ phase: "results" });
+  }}
+/>
       )}
 
-      {phase === "results" && finalPhaseDone && (
+      {phase === "results" && (
         <ResultsScreen
-          players={players}
-          onRestart={() => window.location.reload()}
+           players={finalResults}
+            onRestart={handleRestart}
         />
       )}
 
@@ -432,19 +467,33 @@ useEffect(() => {
         <button onClick={advancePhase}>Next Phase</button>
       )} */}
 
-      <div>
-        {players.map((p, i) => (
-          <p key={i}>
-            {p.name}: {p.gold} gold, {p.points} points
+      {phase !== "results" && (
+        <>
+        </>
+
+
+      )}
+
+
+
+        {phase !== "results" && phase !== "scoring" && (
+        <div>
+          <p>
+            {playerName}: {players.find(p => p.name === playerName)?.gold ?? 0} gold
           </p>
-        ))}
-      </div>
+        </div>
+      )}
 
       <div style={{ marginTop: "30px" }}>
         <h3>Game State</h3>
 
+        {/* ✅ KEEP: Player sees only their own hand */}
         <h4>{playerName}'s Hand</h4>
         <ul>
+          <PlayerHand
+    hand={players.find(p => p.name === playerName)?.hand || []}
+    isCurrentPlayer={true}
+  />
           {players.find(p => p.name === playerName)?.hand.map((card, index) => (
             <li key={index}>
               {card.type} {card.value}
@@ -452,15 +501,23 @@ useEffect(() => {
           )) ?? <li>(No cards)</li>}
         </ul>
 
-        <h4>Discard Pile</h4>
-        <ul>
-          {discardPile.map((card, index) => (
-            <li key={index}>
-              {card.type} {card.value}
-            </li>
-          ))}
-        </ul>
+        
 
+        {/* 🔻 CHANGED: Hide discard pile unless debugging */}
+        {false && (
+          <>
+            <h4>Discard Pile</h4>
+            <ul>
+              {discardPile.map((card, index) => (
+                <li key={index}>
+                  {card.type} {card.value}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {/* ✅ KEEP: Everyone sees the shared pool */}
         <h4>Shared Pool</h4>
         <ul>
           {sharedPool.map((card, index) => (

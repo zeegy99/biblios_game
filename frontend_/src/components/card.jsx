@@ -1,6 +1,25 @@
 import React from "react";
 
-const Card = ({ value, type, tieBreaker, isSpecial }) => {
+//Adjust the colors and card images later. 
+const typeColors = {
+  Religion: "#a67c52",
+  Science: "#5b9bd5",
+  Military: "#c0504d",
+  Art: "#70ad47",
+  Herbs: "#9e480e",
+  Gold: "#ffd700",
+};
+
+const Card = (props) => {
+  const card = props.card ?? props;
+  if (!card) return null;
+
+  const { value, type, tieBreaker, isSpecial } = card;
+
+  const backgroundColor = isSpecial
+    ? "#ffd700"
+    : typeColors[type] || "#fff";  // fallback to white
+
   return (
     <div
       className="card"
@@ -10,7 +29,9 @@ const Card = ({ value, type, tieBreaker, isSpecial }) => {
         padding: "12px",
         margin: "10px",
         width: "120px",
-        backgroundColor: isSpecial ? "#ffd700" : "#fff",
+        backgroundColor,
+        color: "#000",
+        boxShadow: "2px 2px 6px rgba(0, 0, 0, 0.2)",
       }}
     >
       <h4>{type}</h4>
@@ -19,5 +40,6 @@ const Card = ({ value, type, tieBreaker, isSpecial }) => {
     </div>
   );
 };
+
 
 export default Card;

@@ -16,111 +16,139 @@ const DonationPhase = ({
   onFinish,
   totalPlayers,
   currentPlayerIndex,
+  phase,
 }) => {
+
+  console.log("🧠 DonationPhase mounted for", player?.name);
+
+  
   const numToDraw = 2 + (totalPlayers - 1);
   const [cardsToProcess, setCardsToProcess] = useState([]);
   const [kept, setKept] = useState(null);
   const [discarded, setDiscarded] = useState(null);
   const [shared, setShared] = useState([]);
   const [donationDeck, setDonationDeck] = useState(deck);
+  const hasDrawn = useRef(false);
+  const handledSpecialCards = useRef(new Set());
+  const [specialCardToPlay, setSpecialCardToPlay] = useState(null);
+  const [drawnCount, setDrawnCount] = useState(0); // counts non-specials
+  const isFirstRender = useRef(true);
 
-  const playSpecialCard = (card) => {
-  console.log(`${player.name} is playing special dice modifier:`, card);
+  //Dice UI
+  const [diceToModify, setDiceToModify] = useState(null);
+  const [diceSelectionCard, setDiceSelectionCard] = useState(null);
+  const [diceChosen, setDiceChosen] = useState(new Set());
 
-  // Step 1: Resolve "Both" to Plus or Minus
-  if (card.type === "Both") {
-    const choice = prompt("You drew a Both card! Increase or decrease dice? (i/d)").toLowerCase();
-    if (choice === "i") card.type = "Plus";
-    else if (choice === "d") card.type = "Minus";
-    else {
-      alert("Invalid input.");
+  //Resolving Special Dice Cards: 
+  const playSpecialCard = (card) =>
+  {
+    console.log(`${player.name} is playing special dice modifier:`, card);
+
+    // Clone dice from localStorage
+    const prevState = JSON.parse(localStorage.getItem("last_game_state"));
+    const diceClone = prevState?.dice ? [...prevState.dice.map(d => ({ ...d }))] : [];
+
+    if (card.type === "Both") {
+      setDiceSelectionCard(card);
       return;
     }
+
+    setDiceToModify(diceClone);        
+    setDiceSelectionCard(card);      
+    setDiceChosen(new Set());         
+  };
+
+//For SpecialCards
+ useEffect(() => 
+{
+  if (!specialCardToPlay || !isCurrentPlayer) return;
+
+  const card = specialCardToPlay;
+
+  setTimeout(() => {
+    playSpecialCard(card);
+  }, 300);
+}, [specialCardToPlay, isCurrentPlayer]);
+
+
+useEffect(() =>
+{
+  if (phase !== "donation") return;
+  hasDrawn.current = false;
+  console.log("🔄 Resetting draw flag for", player.name);
+}, [phase, player.name]);
+
+
+  //For DrawingCards
+useEffect(() => 
+{
+  console.log(`📍 DRAW EFFECT: phase=${phase}, isCurrentPlayer=${isCurrentPlayer}, drawnCount=${drawnCount}, hasDrawn=${hasDrawn.current}`);
+   if (phase !== "donation" || !isCurrentPlayer) {
+    console.log("I am in if (phase !== ")
+    return;
+   }
+
+  if (hasDrawn.current || drawnCount > 0) {
+    console.warn(`🛑 Skipping draw for ${player.name}: already drawn`);
+    return;
   }
 
-  // Step 2: Clone dice from localStorage (or props/state)
-  const prevState = JSON.parse(localStorage.getItem("last_game_state"));
-  const updatedDice = prevState?.dice ? [...prevState.dice.map(d => ({ ...d }))] : [];
+  console.log("📌 Draw effect triggered for", player.name);
+  hasDrawn.current = true;
 
-  if (card.value === 2) {
-    const chosen = new Set();
-    while (chosen.size < 2) {
-      const modifierSymbol = card.type === "Plus" ? "+" : "-";
-      const promptMessage = `${player.name}, you drew a ${modifierSymbol}${card.value} dice modifier card! Choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`;
-      const idx = parseInt(prompt(promptMessage), 10);
+  console.log("📦 Current deck (from props):", deck.map(c => `${c.type} ${c.value}`));
+  console.log("📦 donationDeck (local state):", donationDeck.map(c => `${c.type} ${c.value}`));
 
-      if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
-        alert("Invalid index. Must be 0–4.");
-        continue;
-      }
 
-      if (chosen.has(idx)) {
-        alert("You've already picked that die.");
-        continue;
-      }
+  const updatedDeck = [...deck];
+  const drawn = [];
 
-      chosen.add(idx);
-      const die = updatedDice[idx];
-      die.value = card.type === "Plus"
-        ? Math.min(6, die.value + 1)
-        : Math.max(1, die.value - 1);
+  while (drawn.length < numToDraw && updatedDeck.length > 0) 
+  {
+    const card = updatedDeck.pop();
 
-      console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
-    }
-  } else {
-    const modifierSymbol = card.type === "Plus" ? "+" : "-";
-    const promptMessage = `${player.name}, you drew a ${modifierSymbol}${card.value} dice modifier card! Choose which die to ${card.type === "Plus" ? "increase" : "decrease"} (0–4):`;
-    const idx = parseInt(prompt(promptMessage), 10);
-    if (isNaN(idx) || idx < 0 || idx >= updatedDice.length) {
-      alert("Invalid die index.");
-      return;
+    if (card.isSpecial) 
+    {
+      handledSpecialCards.current.add(card); // ✅ Queue for later
+      continue; 
     }
 
-    const die = updatedDice[idx];
-    die.value = card.type === "Plus"
-      ? Math.min(6, die.value + card.value)
-      : Math.max(1, die.value - card.value);
+    drawn.push(card);
+  }
+  setDrawnCount(drawn.length);
+  console.log("setDrawnCount to ", drawn.length)
 
-    console.log(`🎲 ${die.resource_type} die is now ${die.value}`);
+  console.log(`🃏 ${player.name} drew cards:`, drawn);
+  console.log(`📦 Deck size after draw: ${updatedDeck.length}`);
+
+  setDeck(updatedDeck);
+  setDonationDeck(updatedDeck);
+  setCardsToProcess(drawn.reverse());
+  broadcastState({ deck: updatedDeck });
+
+  if (drawn.length < numToDraw) {
+    console.warn("Not enough non-special cards — skipping to auction");
+    broadcastState({ phase: "auction" });
+    return;
   }
 
-  // ✅ Broadcast the updated dice to everyone
-  broadcastState({ dice: updatedDice });
-};
+  const specialsArray = [...handledSpecialCards.current];
+  if (specialsArray.length > 0) {
+    const [first, ...rest] = specialsArray;
+    setSpecialCardToPlay(first);
+    handledSpecialCards.current = new Set(rest);
+  }
+}, [phase, isCurrentPlayer]);
 
 
-  useEffect(() => {
-    if (!isCurrentPlayer) return;
 
-    const updatedDeck = [...deck];
-    const drawn = [];
-
-    while (drawn.length < numToDraw && updatedDeck.length > 0) {
-      const card = updatedDeck.pop();
-      if (card.isSpecial) {
-        console.log("💫 Special card drawn:", card);
-        setTimeout(() => {
-          playSpecialCard(card);
-        }, 250); // or 300ms if needed
-      } else {
-        drawn.push(card);
-      }
-    }
-
-    if (drawn.length < numToDraw) {
-      console.warn("Not enough non-special cards — skipping to auction");
-      broadcastState({ phase: "auction" });
-      return;
-    }
-
-    setDeck(updatedDeck);
-    setDonationDeck(updatedDeck);
-    setCardsToProcess(drawn.reverse()); // optional: maintain draw order
-    broadcastState({ deck: updatedDeck });
-  }, []);
 
 
   const handleChoice = (card, action) => {
+    if (specialCardToPlay || diceSelectionCard || diceToModify) {
+    console.warn("🛑 Cannot assign cards during special card resolution");
+    return;
+    }
     if (action === "keep") {
       if (kept) return alert("You've already kept a card.");
       setKept(card);
@@ -130,15 +158,28 @@ const DonationPhase = ({
     } else if (action === "pool") {
       if (shared.length >= numToDraw - 2)
         return alert("Too many shared cards.");
-      setShared([...shared, card]);
-    }
+
+       const newShared = [...shared, card];
+  const pooledCard = { ...card, pooledBy: player.name };
+  const updatedSharedPool = [...sharedPool, pooledCard];
+
+  setShared(newShared);
+  setSharedPool(updatedSharedPool); // ✅ Update local sharedPool state
+
+  broadcastState({
+    sharedPool: updatedSharedPool, // ✅ Broadcast full updated shared pool
+    donationAction: {
+      player: player.name,
+      action: "pooled",
+      card: pooledCard,
+    },
+  });
+}
 
     setCardsToProcess((prev) => prev.slice(1));
   };
 
   const confirmTurn = () => {
-    // console.log("🟩 ConfirmTurn triggered");
-  // console.log("Kept:", kept, "Discarded:", discarded, "Shared:", shared);
   if (!kept || !discarded || shared.length !== numToDraw - 2) {
     alert("You must assign all cards.");
     return;
@@ -156,7 +197,7 @@ const DonationPhase = ({
   );
 
   const updatedDiscard = [...discardPile, discarded];
-  const updatedShared = [...sharedPool, ...shared];
+  const updatedShared = [...sharedPool];
   const lastDonatorIdx = players.findIndex(p => p.name === player.name);
 
   console.log("✅ Updated players before broadcast:", updatedPlayers);
@@ -166,8 +207,7 @@ const DonationPhase = ({
     updatedShared,
     updatedPlayers,
   });
-  // Single state update and broadcast
-
+  
   console.log("🧮 Broadcasting updated deck length:", donationDeck.length);
   broadcastState({
     discardPile: updatedDiscard,
@@ -185,57 +225,170 @@ const DonationPhase = ({
   setDiscarded(null);
   setShared([]);
   setCardsToProcess([]);
-
+  setDrawnCount(0);
   
 };
 
   const currentCard = cardsToProcess[0];
 
   return (
-    <div>
-      <h3>{player.name}'s Donation Turn</h3>
+  <div>
+    <h3>{players[currentPlayerIndex]?.name}'s Donation Turn</h3>
 
-      {!isCurrentPlayer && (
-        <p>⏳ Waiting for {player.name} to complete their turn...</p>
-      )}
+    {/* 🟡 Everyone sees the special card banner */}
+    {specialCardToPlay && (
+      <div style={{ margin: "20px auto", padding: "15px", border: "2px solid gold", borderRadius: "10px", width: "fit-content", backgroundColor: "#fff8dc" }}>
+        <h4 style={{ textAlign: "center" }}>💫 Special Card Drawn!</h4>
+        <Card {...specialCardToPlay} />
+      </div>
+    )}
 
-      {isCurrentPlayer && (
-        <>
-          {currentCard ? (
-            <div>
-              <h4>Choose what to do with this card:</h4>
-              <Card {...currentCard} />
-              <div style={{ marginTop: "10px" }}>
-                <button onClick={() => handleChoice(currentCard, "keep")}>
-                  Keep
-                </button>
-                <button onClick={() => handleChoice(currentCard, "discard")}>
-                  Discard
-                </button>
-                <button onClick={() => handleChoice(currentCard, "pool")}>
-                  Pool
-                </button>
-              </div>
+    {/* 🟣 Both card choice */}
+    {diceSelectionCard?.type === "Both" && !diceToModify && (
+      <div style={{ marginTop: "20px", border: "2px solid violet", padding: "10px", borderRadius: "10px" }}>
+        <h4>💫 You drew a Both card ({diceSelectionCard.value})</h4>
+        <p>Choose how you'd like to use it:</p>
+        {isCurrentPlayer ? (
+          <>
+            <button style={{ marginRight: "10px" }} onClick={() => playSpecialCard({ ...diceSelectionCard, type: "Plus" })}>
+              ➕ Increase
+            </button>
+            <button onClick={() => playSpecialCard({ ...diceSelectionCard, type: "Minus" })}>
+              ➖ Decrease
+            </button>
+          </>
+        ) : (
+          <p style={{ color: "gray" }}>Waiting for {player.name} to choose...</p>
+        )}
+      </div>
+    )}
+
+    {/* 🎲 Dice resolution UI */}
+    {diceToModify && diceSelectionCard && (
+      <div style={{ marginTop: "20px", border: "2px dashed gray", padding: "10px", borderRadius: "10px" }}>
+        <h4>
+          🎲 Modify Dice — {diceSelectionCard.type === "Plus" ? "+" : "-"}
+          {diceSelectionCard.value}
+        </h4>
+        {!isCurrentPlayer && (
+          <p style={{ color: "gray", marginBottom: "10px" }}>
+            ⏳ Waiting for {player.name} to select dice...
+          </p>
+        )}
+        <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
+          {diceToModify.map((die, i) => (
+            <div key={i} style={{ border: "1px solid #ccc", padding: "10px", borderRadius: "8px", textAlign: "center", minWidth: "80px" }}>
+              <div style={{ fontWeight: "bold" }}>{die.resource_type}</div>
+              <div style={{ fontSize: "24px", margin: "6px 0" }}>{die.value}</div>
+              <button
+                disabled={!isCurrentPlayer || diceChosen.has(i)}
+                onClick={() => {
+                  if (!isCurrentPlayer) return;
+
+                  const updated = [...diceToModify];
+                  updated[i].value = diceSelectionCard.type === "Plus"
+                    ? Math.min(6, updated[i].value + 1)
+                    : Math.max(1, updated[i].value - 1);
+
+                  const nextChosen = new Set(diceChosen);
+                  nextChosen.add(i);
+                  setDiceToModify(updated);
+                  setDiceChosen(nextChosen);
+
+                  const needed = diceSelectionCard.value === 2 ? 2 : 1;
+                  if (nextChosen.size === needed) {
+
+                    broadcastState({ dice: updated });
+                    // setSpecialCardToPlay(null);
+                    setDiceToModify(null);
+                    setDiceSelectionCard(null);
+                    setDiceChosen(new Set());
+                    setCardsToProcess((prev) => prev.filter((c) => c !== diceSelectionCard));
+
+                     // Remove current special from cardsToProcess
+                    setCardsToProcess((prev) => prev.filter((c) => c !== diceSelectionCard));
+
+                    // Queue next special
+                    const remaining = [...handledSpecialCards.current];
+                    if (remaining.length > 0) {
+                      const [next, ...rest] = remaining;
+                      setSpecialCardToPlay(next);
+                      handledSpecialCards.current = new Set(rest);
+                    } else {
+                      setSpecialCardToPlay(null);
+                    }
+                  }
+                }}
+              >
+                {diceSelectionCard.type === "Plus" ? "➕" : "➖"}
+              </button>
             </div>
-          ) : (
-            <div>
-              <p>
-                You kept: {kept?.type} {kept?.value}
-              </p>
-              <p>
-                You discarded: {discarded?.type} {discarded?.value}
-              </p>
-              <p>
-                Shared cards:{" "}
-                {shared.map((c, i) => `${c.type} ${c.value}`).join(", ")}
-              </p>
-              <button onClick={confirmTurn}>Confirm Turn</button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* 👤 Non-current player's view */}
+    {!isCurrentPlayer && (
+      <p>⏳ Waiting for {players[currentPlayerIndex]?.name} to complete their turn...</p>
+    )}
+
+    {/* ✅ Main player control section */}
+    {isCurrentPlayer && (
+      <>
+        {currentCard ? (
+          <div>
+            <h4>Choose what to do with this card:</h4>
+            <Card {...currentCard} />
+            <div style={{ marginTop: "10px" }}>
+              <button onClick={() => handleChoice(currentCard, "keep")}
+                disabled={specialCardToPlay || diceSelectionCard || diceToModify}>
+                Keep
+              </button>
+              <button onClick={() => handleChoice(currentCard, "discard")}
+                disabled={specialCardToPlay || diceSelectionCard || diceToModify}>
+                Discard
+              </button>
+              <button onClick={() => handleChoice(currentCard, "pool")}
+                disabled={specialCardToPlay || diceSelectionCard || diceToModify}>
+                Pool
+              </button>
             </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+          </div>
+        ) : (
+          <div>
+            <p>
+              You kept: {kept?.type} {kept?.value}
+            </p>
+            <p>
+              You discarded: {discarded?.type} {discarded?.value}
+            </p>
+            <p>
+              Shared cards:{" "}
+              {shared.map((c, i) => `${c.type} ${c.value}`).join(", ")}
+            </p>
+            <button onClick={confirmTurn}>Confirm Turn</button>
+          </div>
+        )}
+      </>
+    )}
+
+    <div style={{ marginTop: "30px" }}>
+  <h3>🫱 Shared Cards</h3>
+  <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+    {sharedPool.map((card, idx) => (
+      <div key={idx} style={{ textAlign: "center" }}>
+        <Card card={card} />
+        <p style={{ fontSize: "0.9em", color: "gray" }}>
+          Pooled by {card.pooledBy || "?"}
+        </p>
+      </div>
+    ))}
+  </div>
+</div>
+  </div>
+);
+
 };
 
 export default DonationPhase;
