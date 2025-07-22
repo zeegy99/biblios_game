@@ -140,7 +140,15 @@ useEffect(() =>
   }
 }, [phase, isCurrentPlayer]);
 
+ useEffect(() => {
+  if (!specialCardToPlay || !isCurrentPlayer) return;
 
+  const card = specialCardToPlay;
+
+  setTimeout(() => {
+    playSpecialCard(card);
+  }, 300);
+}, [specialCardToPlay, isCurrentPlayer]);
 
 
 
